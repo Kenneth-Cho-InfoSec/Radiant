@@ -630,7 +630,7 @@ public:
     AutomationWindow (AudioEngine& engine, int index, const juce::String& title)
         : juce::DocumentWindow (title, theme::colour::bg1, DocumentWindow::closeButton)
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         setContentOwned (new AutomationEditor (engine, index), true);
         setResizable (true, false);
         setResizeLimits (400, 200, 4000, 2000);

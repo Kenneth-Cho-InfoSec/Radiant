@@ -299,7 +299,7 @@ public:
                 }
                 case T::surface:
                 {
-                    auto l = std::make_unique<juce::Label> (juce::String {}, tr ("(Control Surface presets are not available in LYNX SHARE)"));
+                    auto l = std::make_unique<juce::Label> (juce::String {}, tr ("(Control Surface presets are not available in Radiant)"));
                     l->setFont (theme::font (theme::type::caption));
                     l->setColour (juce::Label::textColourId, theme::colour::textDisabled);
                     editor = std::move (l);
@@ -1966,7 +1966,7 @@ private:
     juce::PopupMenu scriptMenu()
     {
         juce::PopupMenu menu;
-        menu.addSectionHeader ("LYNX SHARE");
+        menu.addSectionHeader ("Radiant");
         std::map<juce::String, juce::PopupMenu> own;
         for (const auto& b : ae::script::builtins())
         {

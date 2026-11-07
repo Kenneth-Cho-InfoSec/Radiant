@@ -137,10 +137,10 @@ std::optional<Song> loadSong (const juce::File& file, juce::String& error)
     return song;
 }
 
-static std::optional<midiimport::ParsedMidi> parseStream (juce::InputStream& in, bool opened, juce::String& error)
+std::optional<midiimport::ParsedMidi> parseStream (juce::InputStream& in, juce::String& error)
 {
     juce::MidiFile midi;
-    if (! opened || ! midi.readFrom (in))
+    if (! midi.readFrom (in))
     {
         error = utf8 ("not a valid MIDI file");
         return std::nullopt;
@@ -189,13 +189,23 @@ static std::optional<midiimport::ParsedMidi> parseStream (juce::InputStream& in,
 std::optional<midiimport::ParsedMidi> parseFile (const juce::File& file, juce::String& error)
 {
     juce::FileInputStream in (file);
-    return parseStream (in, in.openedOk(), error);
+    if (! in.openedOk())
+    {
+        error = utf8 ("not a valid MIDI file");
+        return std::nullopt;
+    }
+    return parseStream (in, error);
 }
 
 std::optional<midiimport::ParsedMidi> parseBytes (const void* data, std::size_t size, juce::String& error)
 {
     juce::MemoryInputStream in (data, size, false);
-    return parseStream (in, size > 0, error);
+    if (size == 0)
+    {
+        error = utf8 ("not a valid MIDI file");
+        return std::nullopt;
+    }
+    return parseStream (in, error);
 }
 
 juce::MemoryBlock writeNotes (const Song& song, const std::vector<Note>& notes, const std::string& trackName)
@@ -259,7 +269,7 @@ std::optional<std::vector<Note>> loadNotes (const juce::File& file, int channel,
     return notes;
 }
 
-bool savePattern (const Song& song, int patternIndex, const juce::File& file, juce::String& error)
+bool savePattern (const Song& song, int patternIndex, juce::OutputStream& out, juce::String& error)
 {
     if (patternIndex < 0 || patternIndex >= (int) song.patterns.size())
     {
@@ -296,19 +306,29 @@ bool savePattern (const Song& song, int patternIndex, const juce::File& file, ju
         midi.addTrack (seq);
     }
 
+    if (! midi.writeTo (out))
+    {
+        error = utf8 ("could not write MIDI data");
+        return false;
+    }
+
+    out.flush();
+    return true;
+}
+
+bool savePattern (const Song& song, int patternIndex, const juce::File& file, juce::String& error)
+{
     file.deleteFile();
     juce::FileOutputStream out (file);
-
-    if (out.failedToOpen() || ! midi.writeTo (out))
+    if (out.failedToOpen())
     {
         error = utf8 ("could not write ") + file.getFullPathName();
         return false;
     }
-
-    return true;
+    return savePattern (song, patternIndex, out, error);
 }
 
-bool saveSong (const Song& song, const juce::File& file, juce::String& error)
+bool saveSong (const Song& song, juce::OutputStream& stream, juce::String& error)
 {
     // the arrangement flattened into one pattern, written like a pattern (one track per channel)
     Song flat;
@@ -317,6 +337,18 @@ bool saveSong (const Song& song, const juce::File& file, juce::String& error)
     flat.channels = song.channels;
     flat.patterns.resize (1);
     flat.patterns[0].notes = exportopts::midiExportNotes (song);
-    return savePattern (flat, 0, file, error);
+    return savePattern (flat, 0, stream, error);
+}
+
+bool saveSong (const Song& song, const juce::File& file, juce::String& error)
+{
+    file.deleteFile();
+    juce::FileOutputStream out (file);
+    if (out.failedToOpen())
+    {
+        error = utf8 ("could not write ") + file.getFullPathName();
+        return false;
+    }
+    return saveSong (song, out, error);
 }
 } // namespace lynx::MidiFileIo

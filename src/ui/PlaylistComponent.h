@@ -49,7 +49,8 @@ class PlaylistComponent final : public juce::Component,
                                 public juce::DragAndDropTarget,
                                 public ui::HintSource,
                                 private juce::ChangeListener,
-                                private juce::ScrollBar::Listener
+                                private juce::ScrollBar::Listener,
+                                private juce::Timer
 {
 public:
     // What the pencil paints (chosen in the Picker): the current pattern, an audio clip or an automation clip.
@@ -181,6 +182,10 @@ private:
     bool showClipProgress = true, showTrackProgress = true; // FL's View › Performance clip / track progress
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
+#if JUCE_ANDROID
+    void timerCallback() override;
+    void cancelTouchHold();
+#endif
     // the playhead and Performance mode's live clips, at the display's refresh (round 174e; was a 30 Hz timer)
     bool liveFrame (double nowMs);
     double perfRepaintMs = 0.0;
@@ -346,6 +351,11 @@ private:
     juce::Rectangle<int> rubberBand;
     std::int64_t loopAnchor = 0;
     juce::ModifierKeys downMods;
+#if JUCE_ANDROID
+    bool touchHoldPending = false, touchHoldTriggered = false, touchHoldOpensMenu = false;
+    int touchHoldClip = -1, touchHoldSource = -1;
+    juce::Point<float> touchHoldScreenStart;
+#endif
     bool startedOnEmpty = false, erasedSomething = false, holdExpired = false;
     std::vector<int> touchedClips;
     std::int64_t nextPaintTick = 0;

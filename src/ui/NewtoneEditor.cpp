@@ -1494,7 +1494,7 @@ public:
         : DocumentWindow (title, theme::colour::bg2, DocumentWindow::closeButton),
           gone (engine, track, slot, [this] { closeButtonPressed(); })
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         setContentOwned (new NewtoneEditor (engine, track, slot), true);
         setResizable (true, false);
         setResizeLimits (760, 420, 4000, 2000);

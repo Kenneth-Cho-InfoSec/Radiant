@@ -1,4 +1,5 @@
 #include "core/FruityFilters.h"
+#include "core/X87Math.h"
 
 // FL's small filters, exact engines (docs/analise/REA_rodada63.md). Clean-room: written from the behaviour, formulas
 // and data layouts described there; nothing of Image-Line's code or data is copied. Arithmetic follows the plugins
@@ -74,7 +75,7 @@ private:
 };
 
 // x87 control word: 64-bit precision, round to nearest, for the extended-precision kernels
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Mode
 {
     unsigned short saved = 0;

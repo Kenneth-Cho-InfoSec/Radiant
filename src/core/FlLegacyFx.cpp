@@ -1,4 +1,5 @@
 #include "core/FlLegacyFx.h"
+#include "core/X87Math.h"
 
 // FL's legacy Fruity Phase Inverter, Center, Bass Boost, 7 Band EQ and Delay (v1), exact engines (docs/analise/REA_rodada165k.md).
 // Clean-room: written from the behaviour, formulas and data layouts described there; nothing of Image-Line's code or
@@ -45,7 +46,7 @@ float unit (int raw, int lo, int hi) noexcept
 }
 
 // x87 control word: 64-bit precision, round to nearest, for the extended-precision kernels
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Mode
 {
     unsigned short saved = 0;

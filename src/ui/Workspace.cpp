@@ -127,8 +127,9 @@ public:
     void refreshButtons()
     {
         const auto detached = owner.isDetached (panel);
-        dockButton.setVisible (detached);
-        maximiseButton.setVisible (! detached);
+        dockButton.setVisible (detached && ! owner.isMobileMode());
+        maximiseButton.setVisible (! detached && ! owner.isMobileMode());
+        closeButton.setVisible (! owner.isMobileMode());
         maximiseButton.setIcon (owner.isMaximised (panel) ? Icon::restore : Icon::maximise);
         maximiseButton.setTooltip (owner.isMaximised (panel) ? tr ("Restore the panel size (double-click the title)")
                                                               : tr ("Maximize the panel (double-click the title)"));
@@ -158,7 +159,8 @@ public:
         menu.addItem (tr ("Detached (own window)"), true, detached, [this, detached] { owner.setDetached (panel, ! detached); });
         menu.addItem (tr ("Maximized"), ! detached, owner.isMaximised (panel), [this] { owner.toggleMaximised (panel); });
         menu.addItem (tr ("Close"), [this] { owner.hide (panel); });
-        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&menuButton));
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&menuButton)
+                                                       .withParentComponent (&owner));
     }
 
     void paint (juce::Graphics& g) override
@@ -482,11 +484,11 @@ class DetachedPanelWindow final : public juce::DocumentWindow, private juce::Tim
 {
 public:
     DetachedPanelWindow (Workspace& w, Panel p, PanelFrame& frame, juce::Rectangle<int> screenBounds)
-        : juce::DocumentWindow ("LYNX SHARE - " + frame.getTitle(), theme::colour::bg2, DocumentWindow::closeButton | DocumentWindow::maximiseButton),
+        : juce::DocumentWindow ("Radiant - " + frame.getTitle(), theme::colour::bg2, DocumentWindow::closeButton | DocumentWindow::maximiseButton),
           owner (w),
           panel (p)
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         getProperties().set ("lynxPanel", true); // a panel, not a tool window: Ctrl+F12 / F12 leave it open
         setResizable (true, false);
         snapping.setSizeLimits (workspace::minWidth, workspace::minHeight + Workspace::titleHeight, 10000, 10000);
@@ -637,7 +639,7 @@ void Workspace::setTitle (Panel panel, const juce::String& title)
     frames[(std::size_t) panel]->setTitle (title);
 
     if (auto& w = windows[(std::size_t) panel])
-        w->setName ("LYNX SHARE - " + title);
+        w->setName ("Radiant - " + title);
 }
 
 void Workspace::setTitleTooltip (Panel panel, const juce::String& tooltip)
@@ -867,6 +869,38 @@ void Workspace::applyLayout()
 
     setFocusedPanel (layout.focused);
     repaint();
+}
+
+void Workspace::showOnlyPanel (Panel panel)
+{
+    if (! layoutReady)
+    {
+        layout = workspace::Layout::makeDefault (juce::jmax (1, getWidth()), juce::jmax (1, getHeight()));
+        layoutReady = true;
+    }
+
+    pristine = false;
+    restoredState.clear();
+    pendingState.clear();
+    for (int i = 0; i < workspace::panelCount; ++i)
+    {
+        auto& state = layout.panels[(std::size_t) i];
+        state.visible = (Panel) i == panel;
+        state.maximised = (Panel) i == panel;
+        state.detached = false;
+    }
+    layout.show (panel);
+    applyLayout();
+}
+
+void Workspace::setMobileMode (bool mobile)
+{
+    if (mobileMode == mobile)
+        return;
+
+    mobileMode = mobile;
+    for (auto& frame : frames)
+        frame->refreshButtons();
 }
 
 void Workspace::resized()

@@ -68,7 +68,7 @@ bool loadFx (juce::AudioPluginInstance& plugin, const std::vector<std::uint8_t>&
     const auto fx = pp::parseFx (bytes);
     if (! fx)
     {
-        error = tr ("This file is not a VST2 preset (.fxp / .fxb) LYNX SHARE can read.");
+        error = tr ("This file is not a VST2 preset (.fxp / .fxb) Radiant can read.");
         return false;
     }
     const auto info = vst2::info (plugin);
@@ -82,8 +82,8 @@ bool loadFx (juce::AudioPluginInstance& plugin, const std::vector<std::uint8_t>&
     {
         if (! info || ! vst2::setChunk (plugin, fx->chunk, fx->kind == K::chunkProgram))
         {
-            error = tr ("Only a VST2 plugin running inside LYNX SHARE can read this preset (it holds the plugin's own data). "
-                        "Turn off \"Make bridged\" / the separate process for it, or save a LYNX SHARE preset instead.");
+            error = tr ("Only a VST2 plugin running inside Radiant can read this preset (it holds the plugin's own data). "
+                        "Turn off \"Make bridged\" / the separate process for it, or save a Radiant preset instead.");
             return false;
         }
         if (fx->kind == K::chunkBank && fx->currentProgram > 0 && fx->currentProgram < plugin.getNumPrograms())
@@ -115,7 +115,7 @@ bool saveFx (juce::AudioPluginInstance& plugin, bool bank, const juce::String& n
     const auto info = vst2::info (plugin);
     if (! info)
     {
-        error = tr ("Only VST2 plugins running inside LYNX SHARE save .fxp / .fxb files.");
+        error = tr ("Only VST2 plugins running inside Radiant save .fxp / .fxb files.");
         return false;
     }
     pp::FxFile fx;
@@ -226,7 +226,7 @@ bool load (juce::AudioPluginInstance& plugin, const juce::File& file, juce::Stri
         plugin.getExtensions (v);
         if (! ok)
             error = vst3 ? tr ("The plugin did not accept this preset (saved by another plugin?).")
-                         : tr ("Only VST3 plugins running inside LYNX SHARE read .vstpreset files.");
+                         : tr ("Only VST3 plugins running inside Radiant read .vstpreset files.");
         return ok;
     }
     error = tr ("Unknown preset format.");
@@ -253,7 +253,7 @@ bool save (juce::AudioPluginInstance& plugin, const juce::File& file, const juce
         plugin.getExtensions (v);
         if (! vst3 || data.getSize() == 0)
         {
-            error = tr ("Only VST3 plugins running inside LYNX SHARE save .vstpreset files.");
+            error = tr ("Only VST3 plugins running inside Radiant save .vstpreset files.");
             return false;
         }
         bytes = bytesOf (data);

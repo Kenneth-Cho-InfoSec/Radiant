@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/X87Math.h"
+
 // Image-Line's plugin voice processor as FL's own Delphi generators carry it (REA_rodada42 §3, REA_rodada43 §1.4–1.6):
 // the five channel articulators of the 364-byte settings snapshot (pan, volume, cutoff, resonance, pitch: envelopes with
 // tensions and LFOs, stepped once per sequencer tick), the channel filter (fast LP, 12 dB LP/BP/HP/BS, 24 dB LP, SVF LP
@@ -103,7 +105,7 @@ inline float rampStep (float& target, float prev, int n, float limit = 0.001f) n
 
 // The processor's filters run on the x87 FPU with 64-bit precision (control word 0x33F, FUN_005a2840): long double
 // arithmetic reproduces them where long double is the x87 format; the guard makes sure the precision field is 64-bit.
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Extended
 {
     unsigned short saved = 0;

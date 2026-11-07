@@ -55,6 +55,19 @@ public:
 
     // Opens .lynx or .flp (also used by the command line).
     void openFile (const juce::File& file);
+    bool openAndroidProject (const juce::File& file, const juce::String& displayName);
+    bool saveAndroidProject (const juce::File& file, const juce::String& displayName);
+    void beginAndroidSession();
+    void endAndroidSession();
+    bool isAndroidSessionActive() const noexcept { return sessionLock != nullptr; }
+    void requestAndroidOpen();
+    void saveFromAndroid() { save (false); }
+    void saveAsFromAndroid() { save (true); }
+    int takeAndroidStorageAction() noexcept { return androidStorageAction.exchange (0); }
+    juce::String getAndroidProjectPath() const { return currentFile.getFullPathName(); }
+    juce::String getAndroidProjectName() const { return projectName; }
+    double getAndroidSongBpm() const noexcept { return engine.getSong().bpm; }
+    void markAndroidSaveFailed() { engine.markModified(); }
     void showSetupWizard(); // first run, or Options > Setup wizard (an overlay over this component)
     void closeSetupWizardForSnapshot() { setupOverlay.reset(); }
     void refreshTweakReadoutForSnapshot() { refreshTweakReadout(); resized(); }
@@ -74,6 +87,26 @@ public:
     void showDesktopForSnapshot (bool extraPanels);
     // --uiperf (round 173f): the default layout with these panels shown too (the reporter's Channel Rack + Mixer)
     void showPanelsForSnapshot (std::initializer_list<workspace::Panel> panels);
+    // Android's compact shell selects one full-screen editor. Leaving compact mode restores the exact prior layout.
+    void setAndroidCompactMode (bool compact);
+    void setAndroidPanel (int panel);
+    int getAndroidPanel() const noexcept { return androidPanel; }
+    bool isAndroidCompactMode() const noexcept { return androidCompact; }
+    int getAndroidVisiblePanelCount() const
+    {
+        int count = 0;
+        for (int i = 0; i < workspace::panelCount; ++i)
+            count += workspace.isPanelVisible ((workspace::Panel) i) ? 1 : 0;
+        return count;
+    }
+    bool isAndroidSelectedPanelMaximised() const { return workspace.isMaximised ((Panel) androidPanel); }
+    std::array<int, 6> getAndroidPanelState (int panel) const
+    {
+        const auto p = (workspace::Panel) juce::jlimit (0, workspace::panelCount - 1, panel);
+        const auto bounds = workspace.getPanelBounds (p);
+        return { workspace.isPanelVisible (p) ? 1 : 0, workspace.isMaximised (p) ? 1 : 0,
+                 bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight() };
+    }
     void openQuickAddForTest() { showQuickAdd(); } // --windowtest
     void waitForBrowserForSnapshot() { browser.waitForListing (5000); }
     juce::StringArray getMenuNamesForSnapshot() { return getMenuBarNames(); }
@@ -133,7 +166,7 @@ private:
     void showImportReport();
     void importFlp (const juce::File& file);
     void flpImported (const juce::File& file); // after the import: title, recent files, missing files
-    void openLynxProject (const juce::File& file);
+    bool openLynxProject (const juce::File& file);
     // The "Missing files" window (ui/MissingFilesDialog.h) for the current project; `afterOpening`: shown by opening a
     // project (only when something is missing; the FL import report follows it), else from the menu (always).
     void showMissingFiles (bool afterOpening);
@@ -230,6 +263,7 @@ private:
     // File › Import › MIDI file... (REA round 143)
     void importMidiFile();
     void importMidiFile (const juce::File& file, const MidiFileIo::ImportOptions& options);
+    void importMidiFile (const midiimport::ParsedMidi& midi, const juce::String& fileName, const MidiFileIo::ImportOptions& options);
     static float& lastTweakedClipboard();
     void setTweakedValue (const AutomationTarget& target, float value);
     juce::MenuBarComponent menuBar { this };
@@ -279,7 +313,8 @@ private:
     void refreshToolbar();
     void updateTitle();
     bool shouldReclaimKeyboardFocus(); // the main window is active but nothing in it has the keyboard focus
-    void autosave();
+    void autosave (std::function<void (bool)> completion = {});
+    void writeAndroidSessionBackup();
     // project safety (REA round 118, FL's backup folder / save new version / project data files interpreted)
     void saveNewVersion();
     void revertToLastBackup();
@@ -303,6 +338,7 @@ private:
     void quickRecordAudio();      // round 163: one key from "record" to a clip
     std::unique_ptr<juce::InterProcessLock> sessionLock;
     juce::File sessionMarker;
+    bool androidSessionClosePending = false;
     int autosaveTicks = 0;
     std::shared_ptr<std::atomic<bool>> autosaveRunning = std::make_shared<std::atomic<bool>> (false); // the backup file is being written
     int autosaveMinutes = 2, autosaveKeep = 10; // Settings › General › Backup
@@ -530,7 +566,10 @@ private:
     MixerComponent mixer;
     BrowserComponent browser;
     Workspace workspace; // after the panels' contents: it is destroyed first
-    updater::UpdateBar updateBar; // "LYNX SHARE x.y.z is available" under the toolbar (round 166b)
+    juce::String androidWideLayout;
+    int androidPanel = (int) workspace::Panel::playlist;
+    bool androidCompact = false;
+    updater::UpdateBar updateBar; // "Radiant x.y.z is available" under the toolbar (round 166b)
     std::unique_ptr<juce::Component> danceStage; // the dance channels' dancers over the workspace (ui/DanceView.h, round 165e)
 
     std::unique_ptr<juce::FileChooser> fileChooser;
@@ -538,6 +577,9 @@ private:
     juce::File importedFlpFile; // the .flp the current project was imported from (until another project is opened)
     juce::String importedSuffix; // " (imported from FL Studio)" in the title until saved as .lynx
     juce::String projectName; // suggested name for export (also from an imported .flp)
+    std::atomic<int> androidStorageAction { 0 }; // 1 open document, 2 save-as document, 3 sync the staged project to SAF
+    bool androidDocumentBacked = false;
+    juce::String androidDisplayName;
     HeldNotes heldKeys; // notes the typing piano is playing (tag: the key code)
     // Online Sessions P2 (round 169b): the live session (last: it ends, and tells the others, before anything goes)
     std::unique_ptr<LiveSessionManager> live;

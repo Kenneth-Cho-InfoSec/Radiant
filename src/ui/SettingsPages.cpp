@@ -111,7 +111,7 @@ public:
             add (*c);
 
         styleLabel (languageLabel, tr ("Language"));
-        styleNote (languageNote, tr ("A new language is applied when LYNX SHARE restarts."));
+        styleNote (languageNote, tr ("A new language is applied when Radiant restarts."));
         int id = 1;
         for (const auto& l : i18n::languages())
         {
@@ -186,7 +186,7 @@ public:
         };
         styleNote (animationNote, tr ("How often the playhead, meters and scopes move. Display follows your screen's refresh rate "
                                       "(smoothest); 60 Hz or 30 Hz use less CPU on slower computers."));
-        toggle (gpuRendering, tr ("Draw with the GPU (Direct2D). Turn off if LYNX SHARE crashes in the graphics driver or the screen flickers"),
+        toggle (gpuRendering, tr ("Draw with the GPU (Direct2D). Turn off if Radiant crashes in the graphics driver or the screen flickers"),
                 options.gpuRendering, [this] (bool on) { options.gpuRendering = on; });
        #if ! JUCE_WINDOWS
         gpuRendering.setVisible (false);
@@ -197,7 +197,7 @@ public:
         toggle (scanAtStart, tr ("Look for new plugins in the background at every start"), options.scanAtStart,
                 [this] (bool on) { options.scanAtStart = on; });
         // the AppImage on Linux (round 161): its menu entry and the .lynx file type, in the user's ~/.local/share
-        toggle (menuEntry, tr ("Show LYNX SHARE in the applications menu and open .lynx files with it"), options.menuEntry,
+        toggle (menuEntry, tr ("Show Radiant in the applications menu and open .lynx files with it"), options.menuEntry,
                 [this] (bool on) { options.menuEntry = on; });
         menuEntry.setVisible (runningAsAppImage());
 
@@ -254,10 +254,10 @@ public:
         toggle (unusedTakes, tr ("When a project closes, offer to delete the recordings it no longer uses"), options.askUnusedRecordings,
                 [this] (bool on) { options.askUnusedRecordings = on; });
 
-        toggle (sandbox, tr ("Run plugins in a separate process (protects LYNX SHARE from crashes)"), options.pluginSandbox,
+        toggle (sandbox, tr ("Run plugins in a separate process (protects Radiant from crashes)"), options.pluginSandbox,
                 [this] (bool on) { options.pluginSandbox = on; });
         styleNote (sandboxNote, tr ("Applies to plugins opened from now on; reopen the project to move the others."));
-        toggle (substitutes, tr ("Substitute missing plugins with LYNX SHARE equivalents"), options.pluginSubstitutes,
+        toggle (substitutes, tr ("Substitute missing plugins with Radiant equivalents"), options.pluginSubstitutes,
                 [this] (bool on) { options.pluginSubstitutes = on; });
         styleNote (substitutesNote, tr ("A project keeps the original plugin and uses it again once it is installed."));
         managePlugins.onClick = [this] {
@@ -276,14 +276,14 @@ public:
         crashBox.addItem (tr ("Never send"), 3);
         crashBox.setSelectedId (juce::jlimit (0, 2, options.crashReports) + 1, juce::dontSendNotification);
         crashBox.onChange = [this] { change ([&] { options.crashReports = crashBox.getSelectedId() - 1; }); };
-        styleNote (crashNote, tr ("A report holds LYNX SHARE's version, your system and audio device, the crash or freeze file and the last steps, without "
+        styleNote (crashNote, tr ("A report holds Radiant's version, your system and audio device, the crash or freeze file and the last steps, without "
                                   "your name, file names or projects. It goes to lynx-share.com only with your consent (Help > Report a problem... "
                                   "sends one by hand)."));
 
         // round 166b: the update check (ui/Updater.h); the Store build has none (the Store updates it)
         toggle (checkUpdates, tr ("Check for updates automatically"), options.checkUpdates, [this] (bool on) { options.checkUpdates = on; });
         checkNow.onClick = [] { updater::checkNow(); };
-        styleNote (updatesNote, tr ("At start-up LYNX SHARE asks GitHub for the newest version number (nothing about you is sent) and shows a bar "
+        styleNote (updatesNote, tr ("At start-up Radiant asks GitHub for the newest version number (nothing about you is sent) and shows a bar "
                                     "when a new version is out. Help > Check for updates... asks at any time."));
         for (auto* c : std::initializer_list<juce::Component*> { &updatesTitle, &checkUpdates, &checkNow, &updatesNote })
             c->setVisible (updater::offered());
@@ -403,8 +403,8 @@ private:
         // Linux without Noto CJK & co.: the language would show empty boxes
         const auto noFont = theme::needsOwnFont (id) && theme::uiFontForLanguage (id).isEmpty();
         languageNote.setText (noFont ? tr ("This language needs a Chinese / Japanese / Korean font: install the Noto Sans CJK fonts "
-                                           "(fonts-noto-cjk or google-noto-sans-cjk-fonts), then restart LYNX SHARE.")
-                                     : tr ("A new language is applied when LYNX SHARE restarts."),
+                                           "(fonts-noto-cjk or google-noto-sans-cjk-fonts), then restart Radiant.")
+                                     : tr ("A new language is applied when Radiant restarts."),
                               juce::dontSendNotification);
         languageNote.setColour (juce::Label::textColourId, noFont ? theme::colour::accent : theme::colour::textDisabled);
         translationLink.setButtonText (tr ("New translation — suggestions welcome"));
@@ -761,7 +761,7 @@ private:
         else if (denied)
             realtime.setText (tr ("Audio thread: normal priority, so the sound breaks up more easily under load. To allow real-time priority, "
                                   "install rtkit (most desktops have it) or add yourself to the \"audio\" group with an rtprio limit "
-                                  "(/etc/security/limits.d), then log in again. LYNX SHARE never needs root."),
+                                  "(/etc/security/limits.d), then log in again. Radiant never needs root."),
                               juce::dontSendNotification);
         else
             realtime.setText (tr ("Audio thread: real-time priority ({0})", { lynx::rt::describe() }), juce::dontSendNotification);
@@ -859,7 +859,7 @@ private:
             refreshRecording();
         };
         styleNote (pingNote, tr ("Connect the ping output to the ping input with a cable (or a loopback in your interface's mixer) and turn your speakers "
-                                 "down: LYNX SHARE plays 8 clicks and times their way back. The result is kept for this driver, device, sample rate and buffer size."));
+                                 "down: Radiant plays 8 clicks and times their way back. The result is kept for this driver, device, sample rate and buffer size."));
         styleToggle (useMeasured, tr ("Use the measured round trip instead of the driver's figures"));
         useMeasured.onClick = [this] {
             auto s = engine.getRecordingSettings();
@@ -960,26 +960,26 @@ private:
                                  { juce::String (prefs::bufferLatencyMs (period, rate), 1) })
                            : tr ("Shared like the normal mode, but asks Windows for a shorter mixing period. Only some drivers support it.");
             case prefs::DriverKind::wasapiExclusive:
-                return tr ("LYNX SHARE uses the device alone: the lowest latency without ASIO, but other programs go silent while LYNX SHARE plays.");
+                return tr ("Radiant uses the device alone: the lowest latency without ASIO, but other programs go silent while Radiant plays.");
             case prefs::DriverKind::directSound:
                 return tr ("Old Windows audio path with high latency. Use it only when the others fail.");
             case prefs::DriverKind::asio:
                 return tr ("Low-latency drivers. LYNX ASIO, FL Studio ASIO and ASIO4ALL work with any device; a manufacturer's ASIO driver works with its own device.");
             case prefs::DriverKind::lynxAsio:
                 if (platform::runningPackaged()) // the Store build: the package folder moves with every update
-                    return tr ("LYNX SHARE's own ASIO driver, with any device: playback and recording (microphone) at low latency. \"Driver settings...\" chooses shared or exclusive mode, the output and input devices and shows the latency. "
-                               "To use it in other programs, install LYNX SHARE from lynx-share.com (the installer registers it).");
-                return tr ("LYNX SHARE's own ASIO driver, with any device: playback and recording (microphone) at low latency. \"Driver settings...\" chooses shared or exclusive mode, the output and input devices and shows the latency. "
-                           "For other programs, run \"Register LYNX ASIO\" in LYNX SHARE's folder once.");
+                    return tr ("Radiant's own ASIO driver, with any device: playback and recording (microphone) at low latency. \"Driver settings...\" chooses shared or exclusive mode, the output and input devices and shows the latency. "
+                               "To use it in other programs, install Radiant from lynx-share.com (the installer registers it).");
+                return tr ("Radiant's own ASIO driver, with any device: playback and recording (microphone) at low latency. \"Driver settings...\" chooses shared or exclusive mode, the output and input devices and shows the latency. "
+                           "For other programs, run \"Register LYNX ASIO\" in Radiant's folder once.");
             case prefs::DriverKind::coreAudio:
                 return tr ("macOS's own audio system: low latency with any device, shared with other programs.");
             case prefs::DriverKind::alsa:
-                return tr ("Talks to the sound card directly. Choose \"default\" or \"pipewire\" to share the device with other programs; a \"hw:\" device gives the lowest latency but takes the card for LYNX SHARE alone.");
+                return tr ("Talks to the sound card directly. Choose \"default\" or \"pipewire\" to share the device with other programs; a \"hw:\" device gives the lowest latency but takes the card for Radiant alone.");
             case prefs::DriverKind::jack:
                 return tr ("Low latency, shared with other programs and routable. On current distributions PipeWire answers as JACK (package pipewire-jack); otherwise start a JACK server first.");
             case prefs::DriverKind::pipewire:
-                return tr ("LYNX SHARE talks to PipeWire directly: low latency, shared with other programs. \"System default\" follows the output chosen in "
-                           "the system's sound settings (also when a device is plugged in or removed); LYNX SHARE appears as \"LYNX\" in pw-link, qpwgraph or Helvum.");
+                return tr ("Radiant talks to PipeWire directly: low latency, shared with other programs. \"System default\" follows the output chosen in "
+                           "the system's sound settings (also when a device is plugged in or removed); Radiant appears as \"LYNX\" in pw-link, qpwgraph or Helvum.");
             case prefs::DriverKind::other:
                 break;
         }
@@ -1197,11 +1197,11 @@ public:
                                                                  &clockOffset, &clockStatusLabel, &clockStatus, &clockNote, &jumpLabel, &jumpBox,
                                                                  &jumpNote })
             add (*c);
-        styleNote (outputsNote, tr ("Send master sync drives drum machines, synths and other software from LYNX SHARE's transport: MIDI clock "
+        styleNote (outputsNote, tr ("Send master sync drives drum machines, synths and other software from Radiant's transport: MIDI clock "
                                     "with Song Position Pointer, or MIDI Time Code."));
         styleLabel (noOutputs, tr ("No MIDI output devices found."));
         styleLabel (clockLabel, tr ("External clock sync"));
-        clockBox.setTooltip (tr ("LYNX SHARE follows the MIDI clock of this input: its tempo, Start / Continue / Stop and Song Position Pointer"));
+        clockBox.setTooltip (tr ("Radiant follows the MIDI clock of this input: its tempo, Start / Continue / Stop and Song Position Pointer"));
         clockBox.onChange = [this] {
             if (loading)
                 return;
@@ -1226,7 +1226,7 @@ public:
         clockOffset.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 56, 24);
         clockOffset.setRange (-1000.0, 1000.0, 1.0);
         clockOffset.setDoubleClickReturnValue (true, 0.0);
-        clockOffset.setTooltip (tr ("Positive plays LYNX SHARE later than the clock, negative earlier"));
+        clockOffset.setTooltip (tr ("Positive plays Radiant later than the clock, negative earlier"));
         clockOffset.onValueChange = [this] {
             if (loading)
                 return;

@@ -3775,7 +3775,7 @@ public:
         : DocumentWindow (title, colour::bg1, DocumentWindow::closeButton | DocumentWindow::minimiseButton),
           gone (engine, track, slot, [this] { closeButtonPressed(); })
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         content = editor.get();
         auto holder = std::make_unique<ScaledHolder> (std::move (editor));
         const auto w = holder->baseW, h = holder->baseH;

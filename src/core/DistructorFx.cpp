@@ -1,4 +1,5 @@
 #include "core/DistructorFx.h"
+#include "core/X87Math.h"
 
 #include "core/Effects.h"
 
@@ -125,7 +126,7 @@ std::string& impulseFolder()
 // Delphi's Sign of a double (−0 counts as 0)
 double sgn (double x) noexcept { return (x == 0.0) ? 0.0 : (std::signbit (x) ? -1.0 : 1.0); }
 
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 // the plugin's x87 routines run with the FPU's precision control as Delphi's run time sets it (53-bit mantissa)
 struct X87Precision
 {
@@ -463,7 +464,7 @@ struct SampleHold
 // x87 2^v as the plugin computes it (frndint, f2xm1, fscale)
 ld x87Exp2 (ld v) noexcept
 {
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
     ld r;
     asm ("fld %%st(0)\n\t"
          "frndint\n\t"

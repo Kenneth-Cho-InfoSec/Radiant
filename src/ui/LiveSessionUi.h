@@ -29,7 +29,7 @@ void start (Context context);
 void join (Context context);
 void showInvite (Context context);
 void leave (Context context);
-// At start-up (round 169j): the host's LYNX SHARE closed during a live session (a crash, the computer restarted):
+// At start-up (round 169j): the host's Radiant closed during a live session (a crash, the computer restarted):
 // offer to resume it from its journal (the guests are waiting and reconnect by themselves).
 void offerResume (Context context);
 

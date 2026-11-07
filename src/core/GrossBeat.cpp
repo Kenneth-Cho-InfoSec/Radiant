@@ -4,6 +4,7 @@
 // IPP-style vector steps), which is what makes the output sample-identical.
 
 #include "core/GrossBeat.h"
+#include "core/X87Math.h"
 
 #include <algorithm>
 #include <atomic>
@@ -22,7 +23,11 @@ namespace lynx::grossbeat
 {
 namespace
 {
-using ext = long double; // the plugin's x87 steps (64-bit mantissa where the platform has it)
+#if LYNX_HAS_X87_EXTENDED
+using ext = long double;
+#else
+using ext = double;
+#endif
 
 constexpr double pi = 3.141592653589793;
 constexpr float twoPiF = 6.28318548f;
@@ -436,7 +441,7 @@ struct Follower
 // The x87 part of the plugin's sinc reader (phases of the window cosines and band-limited sines, their recurrence seeds
 // and the tap distances). The plugin runs this part with the x87 unit at 64-bit precision rounding toward −∞; on
 // x86 with an 80-bit long double LYNX does the same, elsewhere it rounds to nearest (a last-bit difference).
-#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) && __LDBL_MANT_DIG__ == 64
+#if LYNX_HAS_X87_EXTENDED
     #define LYNX_GB_X87 1
 #endif
 

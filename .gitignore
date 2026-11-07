@@ -1,4 +1,5 @@
 build/
+.gradle/
 out/
 .vs/
 .vscode/
@@ -15,3 +16,19 @@ __pycache__/
 *.o
 *.obj
 build-ctl/
+
+# Android and Gradle generated output
+app/build/
+app/.cxx/
+app/.externalNativeBuild/
+.gradle/
+local.properties
+*.apk
+*.aab
+
+# Local indexes, IDE metadata, and signing material
+graphify-out/
+.idea/
+*.jks
+*.keystore
+*.p12

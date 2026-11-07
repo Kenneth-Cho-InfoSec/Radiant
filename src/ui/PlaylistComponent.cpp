@@ -2294,6 +2294,9 @@ ui::Hint PlaylistComponent::hoverForSnapshot()
 
 void PlaylistComponent::mouseDown (const juce::MouseEvent& e)
 {
+#if JUCE_ANDROID
+    cancelTouchHold();
+#endif
     downMods = e.mods;
     startedOnEmpty = erasedSomething = holdExpired = false;
     hover = {};
@@ -2721,6 +2724,19 @@ void PlaylistComponent::mouseDown (const juce::MouseEvent& e)
 
         drag = kind;
         grabOffset = playlist[(std::size_t) hit].start - snap (xToTick (e.x), snapOn);
+#if JUCE_ANDROID
+        // A stationary touch maps to desktop right-click on a clip. Movement beyond the touch slop cancels
+        // the hold and continues as an ordinary clip drag, including when the press began in the title strip.
+        if (e.source.isTouch() && kind == Drag::move)
+        {
+            touchHoldPending = true;
+            touchHoldClip = hit;
+            touchHoldSource = e.source.getIndex();
+            touchHoldScreenStart = e.source.getScreenPosition();
+            touchHoldOpensMenu = e.y < clipBounds (hit).getY() + (int) clipTitleHeight;
+            startTimer (500);
+        }
+#endif
     };
 
     switch (tool)
@@ -2960,6 +2976,10 @@ void PlaylistComponent::mouseDown (const juce::MouseEvent& e)
 
 void PlaylistComponent::mouseDrag (const juce::MouseEvent& e)
 {
+#if JUCE_ANDROID
+    if (touchHoldPending && e.getDistanceFromDragStart() > 8.0f)
+        cancelTouchHold();
+#endif
     if (drag == Drag::perfLaunch)
         return; // (a launch: nothing moves)
 
@@ -3471,8 +3491,84 @@ void PlaylistComponent::postDragHint()
     ui::postHint (hint);
 }
 
+#if JUCE_ANDROID
+void PlaylistComponent::cancelTouchHold()
+{
+    stopTimer();
+    touchHoldPending = touchHoldTriggered = touchHoldOpensMenu = false;
+    touchHoldClip = touchHoldSource = -1;
+}
+
+void PlaylistComponent::timerCallback()
+{
+    if (! touchHoldPending || touchHoldTriggered)
+    {
+        stopTimer();
+        return;
+    }
+
+    const auto* source = juce::Desktop::getInstance().getMouseSource (touchHoldSource);
+    if (source == nullptr || ! source->isDragging())
+    {
+        cancelTouchHold();
+        return;
+    }
+
+    const auto screenPosition = source->getScreenPosition();
+    if (screenPosition.getDistanceFrom (touchHoldScreenStart) > 8.0f)
+    {
+        cancelTouchHold();
+        return;
+    }
+
+    const auto position = getLocalPoint (nullptr, screenPosition.roundToInt());
+    bool rightEdge = false, leftEdge = false;
+    if (clipAt (position.x, position.y, rightEdge, leftEdge) != touchHoldClip)
+    {
+        cancelTouchHold();
+        return;
+    }
+
+    // Commit on release so a hold that turns into a drag can still move the clip.
+    touchHoldTriggered = true;
+    stopTimer();
+}
+#endif
+
 void PlaylistComponent::mouseUp (const juce::MouseEvent& e)
 {
+#if JUCE_ANDROID
+    if (touchHoldPending && touchHoldTriggered)
+    {
+        const auto clip = touchHoldClip;
+        const auto opensMenu = touchHoldOpensMenu;
+        bool rightEdge = false, leftEdge = false;
+        const auto releasedOnClip = e.source.isTouch() && e.getDistanceFromDragStart() <= 8.0f
+                                    && clipAt (e.x, e.y, rightEdge, leftEdge) == clip;
+        cancelTouchHold();
+
+        if (releasedOnClip && clip >= 0 && clip < (int) engine.getSong().playlist.size())
+        {
+            drag = Drag::none;
+            dragClip = -1;
+            dragIndices.clear();
+            dragOriginals.clear();
+
+            if (opensMenu)
+                showClipMenu (clip);
+            else
+            {
+                setSelection ({ clip });
+                deleteSelection();
+                ui::postHint ({ tr ("Clip deleted"), tr ("Undo from the Edit menu") }, 3000);
+            }
+
+            repaint();
+            return;
+        }
+    }
+    cancelTouchHold();
+#endif
     ui::clearPostedHint();
     if (drag == Drag::perfLaunch)
     {
@@ -5713,9 +5809,24 @@ ui::Hint PlaylistComponent::hintAt (juce::Point<int> p)
         if (h.target == gesture::Target::gainHandle)
             hint.text = actionHint (gesture::Action::clipGain, true);
         else if (h.target == gesture::Target::clipMenu)
+        {
+#if JUCE_ANDROID
+            hint.text = tr ("Clip menu: tap the arrow to open it; hold the clip title for actions");
+#else
             hint.text = song.playlist[(std::size_t) h.clip].kind == ClipKind::audio
                             ? tr ("Clip menu: [LMB] or [RMB] opens it (pitch, fit to tempo, reverse, chop, make unique...)")
                             : tr ("Clip menu: [LMB] or [RMB] opens it (make unique, rename and colour, chop, select source...)");
+#endif
+        }
+#if JUCE_ANDROID
+        else if (h.target == gesture::Target::item && ! m.ctrl && automationEditable (h.clip)
+                 && automationBody (song.playlist[(std::size_t) h.clip]).contains (p.toFloat()))
+            hint.text << "  " << tr ("Tap the curve to add a point; drag to edit it");
+        else if (onHeader && ! m.ctrl)
+            hint.text = tr ("Drag to move; hold the clip title for actions");
+        else if (h.target == gesture::Target::item && ! m.ctrl)
+            hint.text = tr ("Drag to move; press and hold to delete");
+#else
         else if (onHeader && ! m.ctrl)
             hint.text << "  " << tr ("The icon at the top left opens the clip menu (make unique, rename...)");
         else if (h.target == gesture::Target::item && ! m.ctrl && automationEditable (h.clip)
@@ -5723,6 +5834,7 @@ ui::Hint PlaylistComponent::hintAt (juce::Point<int> p)
             hint.text << "  " << tr ("[RMB] adds a point here (hold and drag to place it)  [Shift][RMB] on the curve");
         else if (h.target == gesture::Target::item && ! m.ctrl)
             hint.text << "  " << tr ("[Shift][V] + drag: a unique copy  [Alt][RMB] hold: hear it");
+#endif
         const auto& c = song.playlist[(std::size_t) h.clip];
         hint.hasMenu = true;
         if (c.kind == ClipKind::pattern && c.pattern >= 0 && c.pattern < (int) song.patterns.size())

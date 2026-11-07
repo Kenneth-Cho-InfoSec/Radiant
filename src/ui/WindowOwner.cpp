@@ -2,7 +2,6 @@
 
 #include "core/WindowFit.h"
 
-#include "ui/LogoData.h"
 #include "ui/Theme.h"
 #include "platform/Paths.h"
 
@@ -175,7 +174,34 @@ void removeDialogTextFocus()
 
 juce::Image logoImage()
 {
-    return juce::ImageCache::getFromMemory (logo::png256, (int) sizeof (logo::png256));
+    juce::Image image (juce::Image::ARGB, 256, 256, true);
+    juce::Graphics g (image);
+    g.setColour (juce::Colour::fromRGB (0x14, 0x12, 0x18));
+    g.fillRoundedRectangle (juce::Rectangle<float> (4.0f, 4.0f, 248.0f, 248.0f), 60.0f);
+
+    g.setColour (juce::Colour::fromRGB (0xEF, 0xB8, 0xC8));
+    g.drawLine (128.0f, 24.0f, 128.0f, 43.0f, 8.0f);
+    g.drawLine (128.0f, 213.0f, 128.0f, 232.0f, 8.0f);
+    g.drawLine (24.0f, 128.0f, 43.0f, 128.0f, 8.0f);
+    g.drawLine (213.0f, 128.0f, 232.0f, 128.0f, 8.0f);
+    g.drawLine (54.0f, 54.0f, 68.0f, 68.0f, 8.0f);
+    g.drawLine (188.0f, 188.0f, 202.0f, 202.0f, 8.0f);
+    g.drawLine (202.0f, 54.0f, 188.0f, 68.0f, 8.0f);
+    g.drawLine (68.0f, 188.0f, 54.0f, 202.0f, 8.0f);
+
+    g.setColour (juce::Colour::fromRGB (0xD0, 0xBC, 0xFF));
+    g.fillEllipse (juce::Rectangle<float> (54.0f, 54.0f, 148.0f, 148.0f));
+    g.setColour (juce::Colour::fromRGB (0x67, 0x50, 0xA4));
+    g.fillEllipse (juce::Rectangle<float> (78.0f, 78.0f, 100.0f, 100.0f));
+
+    g.setColour (juce::Colours::white);
+    const int heights[] { 28, 48, 68, 44, 30 };
+    for (int i = 0; i < 5; ++i)
+    {
+        const auto height = (float) heights[i];
+        g.fillRoundedRectangle (juce::Rectangle<float> (100.0f + 14.0f * i, 128.0f - height * 0.5f, 8.0f, height), 4.0f);
+    }
+    return image;
 }
 
 void applyWindowChrome (juce::Component& window)
@@ -603,6 +629,67 @@ void fitAllWindowsOnScreen()
     for (int i = desktop.getNumComponents(); --i >= 0;)
         if (auto* window = dynamic_cast<juce::ResizableWindow*> (desktop.getComponent (i)))
             fitWindowOnScreen (*window);
+}
+
+void configureSecondaryWindowControls (juce::DocumentWindow& window)
+{
+   #if JUCE_ANDROID
+    // Android has no desktop-style title bar for JUCE peers. Draw Radiant's JUCE title bar so close and minimize
+    // controls remain in the app, and keep an existing fullscreen button where the window already requested one.
+    window.setUsingNativeTitleBar (false);
+    const auto hasMaximiseButton = window.getMaximiseButton() != nullptr;
+    const auto buttons = juce::DocumentWindow::closeButton | juce::DocumentWindow::minimiseButton
+                         | (hasMaximiseButton ? juce::DocumentWindow::maximiseButton : 0);
+    window.setTitleBarButtonsRequired (buttons, false);
+    window.setTitleBarHeight (48);
+
+    if (auto* button = window.getMinimiseButton())
+    {
+        struct MinimiseState
+        {
+            int contentWidth = 0;
+            int contentHeight = 0;
+            bool contentWasVisible = true;
+            bool collapsed = false;
+        };
+
+        auto state = std::make_shared<MinimiseState>();
+        auto safeWindow = juce::Component::SafePointer<juce::DocumentWindow> (&window);
+        button->setClickingTogglesState (true);
+        button->setTooltip ("Minimize window");
+        button->onClick = [safeWindow, state]
+        {
+            auto* current = safeWindow.getComponent();
+            auto* content = current != nullptr ? current->getContentComponent() : nullptr;
+            if (current == nullptr || content == nullptr)
+                return;
+
+            if (! state->collapsed)
+            {
+                state->contentWidth = content->getWidth();
+                state->contentHeight = content->getHeight();
+                state->contentWasVisible = content->isVisible();
+                content->setVisible (false);
+                current->setContentComponentSize (juce::jmax (1, state->contentWidth), 1);
+                state->collapsed = true;
+                if (auto* minimise = current->getMinimiseButton())
+                    minimise->setTooltip ("Restore window");
+            }
+            else
+            {
+                content->setVisible (state->contentWasVisible);
+                current->setContentComponentSize (juce::jmax (1, state->contentWidth), juce::jmax (1, state->contentHeight));
+                state->collapsed = false;
+                if (auto* minimise = current->getMinimiseButton())
+                    minimise->setTooltip ("Minimize window");
+            }
+
+            fitWindowOnScreen (*current);
+        };
+    }
+   #else
+    window.setUsingNativeTitleBar (true);
+   #endif
 }
 namespace
 {

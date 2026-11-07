@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="7" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-07T13:14:16" hostname="localhost">
+  <testsuite name="com.radiant.daw.AudioRecordingForegroundServiceTest" tests="1" failures="0" errors="0" skipped="0" time="2.746" timestamp="2026-11-07T13:14:16" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5558" />
+    </properties>
+    <testcase name="armingAudioInputStartsForegroundServiceAndDisarmingStopsIt" classname="com.radiant.daw.AudioRecordingForegroundServiceTest" time="2.746" />
+  </testsuite>
+  <testsuite name="com.radiant.daw.BackgroundPlaybackServiceTest" tests="1" failures="0" errors="0" skipped="0" time="6.136" timestamp="2026-11-07T13:14:16" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5558" />
+    </properties>
+    <testcase name="playbackRemainsActiveAfterActivityGoesToBackground" classname="com.radiant.daw.BackgroundPlaybackServiceTest" time="6.136" />
+  </testsuite>
+  <testsuite name="com.radiant.daw.NativeHostInstrumentedTest" tests="4" failures="0" errors="0" skipped="0" time="2.031" timestamp="2026-11-07T13:14:16" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5558" />
+    </properties>
+    <testcase name="microphonePermissionIsDeclaredForOptInAudioRecording" classname="com.radiant.daw.NativeHostInstrumentedTest" time="0.004" />
+    <testcase name="juceHostAttachesResizesAndSurvivesActivityLifecycleChanges" classname="com.radiant.daw.NativeHostInstrumentedTest" time="2.025" />
+    <testcase name="playbackServiceDeclaresBothSupportedAudioForegroundTypes" classname="com.radiant.daw.NativeHostInstrumentedTest" time="0.002" />
+    <testcase name="nativeBridgeExposesRecordingStateToAndroidLifecycle" classname="com.radiant.daw.NativeHostInstrumentedTest" time="0.000" />
+  </testsuite>
+  <testsuite name="com.radiant.daw.SafProjectStorageInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="16.566" timestamp="2026-11-07T13:14:16" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5558" />
+    </properties>
+    <testcase name="createDocumentWritesProjectThatNativeLoaderCanReopen" classname="com.radiant.daw.SafProjectStorageInstrumentedTest" time="16.566" />
+  </testsuite>
+</testsuites>

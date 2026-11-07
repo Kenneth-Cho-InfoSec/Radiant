@@ -1,4 +1,5 @@
 #include "core/FruityDelayBank.h"
+#include "core/X87Math.h"
 
 #include <algorithm>
 #include <cmath>
@@ -68,7 +69,7 @@ float signedVolume (int raw) noexcept
 void panLaw (float pan, float vol, float& l, float& r) noexcept
 {
     const auto v = vol * 1.41421354f;
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
     unsigned short saved = 0, cw = 0;
     asm volatile ("fnstcw %0" : "=m"(saved) : : "memory");
     cw = (unsigned short) ((saved & ~0x0F00u) | 0x0300u); // 64-bit mantissa, round to nearest

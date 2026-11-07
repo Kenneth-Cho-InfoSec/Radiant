@@ -2,6 +2,7 @@
 #include "ui/WindowOwner.h"
 #include "core/NoteNames.h"
 #include "ui/ChannelSettings.h"
+#include "ui/Icons.h"
 #include "ui/FileChoosers.h"
 #include "ui/LayerEditor.h"
 #include "ui/DanceView.h"
@@ -1349,7 +1350,13 @@ public:
 
     // --- FL's arrangement ------------------------------------------------------------------------------
 
+    // Desktop keeps FL's enlarged editor canvas. Android uses its base design size so the full touch surface fits
+    // common tablet heights; fitContentToScreen adds scrolling when a smaller window still cannot show the page.
+#if JUCE_ANDROID
+    static constexpr float layoutScale = 0.85f;
+#else
     static constexpr float layoutScale = 1.25f;
+#endif
     static constexpr int layoutTop = 34;
 
     const plugui::LayoutItem* itemFor (const juce::String& name) const
@@ -3620,7 +3627,7 @@ private:
             ref.edit (engine, [s = *synth] (ChannelDef& channelDef) { channelDef.synth = s; });
         else
             juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("FL presets"),
-                                                    tr ("This preset is not for a synth LYNX SHARE converts, or it could not be read."));
+                                                    tr ("This preset is not for a synth Radiant converts, or it could not be read."));
     }
     juce::Slider porta;
     juce::ComboBox filterTypeBox;
@@ -4904,6 +4911,22 @@ public:
             });
         };
         addAndMakeVisible (on);
+#if JUCE_ANDROID
+        minimiseButton.setFlat (true);
+        minimiseButton.setIconSizing (0.58f, 20.0f);
+        minimiseButton.setTooltip (tr ("Minimize editor"));
+        minimiseButton.onClick = [this] { setMinimized (! minimized); };
+        addAndMakeVisible (minimiseButton);
+
+        closeButton.setFlat (true);
+        closeButton.setIconSizing (0.58f, 20.0f);
+        closeButton.setTooltip (tr ("Close editor"));
+        closeButton.onClick = [this] {
+            if (auto* window = findParentComponentOfClass<juce::DocumentWindow>())
+                window->closeButtonPressed();
+        };
+        addAndMakeVisible (closeButton);
+#endif
         if (ChannelPresetBar::wanted (engine, channel))
         {
             presetBar = std::make_unique<ChannelPresetBar> (engine, channel);
@@ -5001,6 +5024,8 @@ public:
         refresh();
         engine.addChangeListener (this);
         setSize (width, headerHeight + height);
+        expandedWidth = width;
+        expandedHeight = headerHeight + height;
         showTab (0);
     }
 
@@ -5016,7 +5041,7 @@ public:
         current = index;
         for (int i = 0; i < (int) pages.size(); ++i)
         {
-            pages[(std::size_t) i]->setVisible (i == index);
+            pages[(std::size_t) i]->setVisible (! minimized && i == index);
             tabs[(std::size_t) i]->setToggleState (i == index, juce::dontSendNotification);
         }
     }
@@ -5064,6 +5089,10 @@ public:
             tabsArea.removeFromLeft (4);
         }
         auto right = getLocalBounds().removeFromTop (headerHeight).reduced (6, 2);
+#if JUCE_ANDROID
+        closeButton.setBounds (right.removeFromRight (48));
+        minimiseButton.setBounds (right.removeFromRight (48));
+#endif
         for (auto it = header.rbegin(); it != header.rend(); ++it)
             (*it)->setBounds (right.removeFromRight (48));
         on.setBounds (right.removeFromRight (52).withSizeKeepingCentre (52, 24));
@@ -5077,6 +5106,26 @@ public:
     }
 
 private:
+    void setMinimized (bool shouldMinimize)
+    {
+        if (node || minimized == shouldMinimize)
+            return;
+
+        minimized = shouldMinimize;
+        minimiseButton.setIcon (minimized ? Icon::maximise : Icon::minimise);
+        minimiseButton.setTooltip (minimized ? tr ("Restore editor") : tr ("Minimize editor"));
+        for (int i = 0; i < (int) pages.size(); ++i)
+            pages[(std::size_t) i]->setVisible (! minimized && i == current);
+
+        setSize (expandedWidth, minimized ? headerHeight : expandedHeight);
+        if (auto* window = findParentComponentOfClass<juce::ResizableWindow>())
+            if (auto* content = window->getContentComponent())
+            {
+                window->setContentComponentSize (content->getWidth(), content->getHeight());
+                fitWindowOnScreen (*window);
+            }
+    }
+
     void refresh()
     {
         if (channel < (int) engine.getSong().channels.size())
@@ -5096,8 +5145,11 @@ private:
     std::vector<juce::Point<int>> sizes;
     std::vector<std::unique_ptr<FrameKnob>> header;
     juce::ToggleButton on;
+    IconButton minimiseButton { "Minimize editor", Icon::minimise }, closeButton { "Close editor", Icon::close };
     std::unique_ptr<ChannelPresetBar> presetBar;
     bool instrumentPageFirst = false;
+    bool minimized = false;
+    int expandedWidth = 0, expandedHeight = 0;
 };
 
 bool hasEnvelopeTab (InstrumentKind kind) noexcept
@@ -5168,6 +5220,7 @@ public:
           modulation (modulationWindow)
     {
         setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         // FL names the window after the channel and its mixer track (REA round 149 [EXEC]: "FL Studio VSTi (Master)",
         // "Synth Bass (Synth Bass)")
         if (const auto& song = engine.getSong(); channel >= 0 && channel < (int) song.channels.size())
@@ -5181,12 +5234,17 @@ public:
                      + (modulation ? " - " + tr ("Envelope / instrument") : juce::String()));
         }
 
+        std::unique_ptr<juce::Component> content;
         if (modulation)
-            setContentOwned (new ModulationPanel (engine, ChannelRef::rack (channel)), true);
+            content = std::make_unique<ModulationPanel> (engine, ChannelRef::rack (channel));
         else if (! hasChannelSettings (engine.getSong().channels[(std::size_t) channel].instrument))
-            setContentOwned (new ChannelFrame (engine, ChannelRef::rack (channel), nullptr, nullptr), true); // the Misc tab alone
+            content = std::make_unique<ChannelFrame> (engine, ChannelRef::rack (channel), nullptr, nullptr); // the Misc tab alone
         else
-            setContentOwned (makeChannelFrame (engine, channel).release(), true);
+            content = makeChannelFrame (engine, channel);
+
+        // Native instrument pages such as Sakura are intentionally larger than their desktop design canvas. On a
+        // tablet with less available height, keep the page reachable inside a screen-fitted scrolling viewport.
+        setContentOwned (fitContentToScreen (std::move (content)).release(), true);
 
         centreWithSize (getWidth(), getHeight());
         if (! modulation)

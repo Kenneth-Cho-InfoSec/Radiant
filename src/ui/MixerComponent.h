@@ -25,7 +25,7 @@ const std::vector<EffectKind>& addableEffects();
 // added here, its menu name ("(beta)", "(requires FL Studio)") and a new slot (nullopt = not available here)
 bool addableEffectAvailable (EffectKind kind);
 // One of FL Studio's own effects (by its FL name, even when LYNX made it): the plugin menus file it under FL's category
-// (round 170b); LYNX's own effects go under "LYNX SHARE".
+// (round 170b); LYNX's own effects go under "Radiant".
 bool isFlEffect (EffectKind kind);
 juce::String addableEffectName (EffectKind kind);
 std::optional<EffectSlot> newAddableEffect (EffectKind kind, double bpm = 120.0);

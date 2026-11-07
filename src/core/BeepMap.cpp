@@ -1,6 +1,7 @@
 // FL Studio's BeepMap (REA_rodada65 §2). See BeepMap.h.
 
 #include "core/BeepMap.h"
+#include "core/X87Math.h"
 #include "core/HostSlide.h"
 #include "core/ModelParams.h"
 
@@ -35,7 +36,7 @@ const double ln2Cents = (std::log (2.0) / 12.0) / 100.0;
 constexpr double c5Phase = 2247346493527.166;       // 523.2511306…·2^32 (DAT_0072ea30)
 constexpr double c5Hz = 523.251130601197;           // DAT_0072fb10
 
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Extended
 {
     unsigned short saved = 0;

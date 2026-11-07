@@ -72,20 +72,22 @@ void outlineRounded (juce::Graphics& g, juce::Rectangle<float> r, float corner, 
 class CaptionButton final : public juce::Button
 {
 public:
-    CaptionButton (const juce::String& name, Icon i, bool isClose) : juce::Button (name), icon (i), close (isClose) {}
+    CaptionButton (const juce::String& name, Icon i, bool isClose, bool isMinimise)
+        : juce::Button (name), icon (i), close (isClose), minimise (isMinimise) {}
 
     void paintButton (juce::Graphics& g, bool highlighted, bool down) override
     {
         if (highlighted || down)
             g.fillAll (close ? (down ? accentPressed : accent) : (down ? bg6 : bg5));
 
-        icons::draw (g, icon, getLocalBounds().toFloat().withSizeKeepingCentre (16.0f, 16.0f),
+        const auto displayedIcon = minimise && getToggleState() ? Icon::maximise : icon;
+        icons::draw (g, displayedIcon, getLocalBounds().toFloat().withSizeKeepingCentre (16.0f, 16.0f),
                      highlighted || down ? textPrimary : textSecondary);
     }
 
 private:
     Icon icon;
-    bool close;
+    bool close, minimise;
 };
 } // namespace
 
@@ -715,6 +717,27 @@ void LookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
     label.setColour (juce::Label::textColourId, box.findColour (juce::ComboBox::textColourId).withMultipliedAlpha (box.isEnabled() ? 1.0f : 0.5f));
 }
 
+juce::Component* LookAndFeel::getParentComponentForMenuOptions (const juce::PopupMenu::Options& options)
+{
+#if JUCE_ANDROID
+    // Android PopupMenu windows are separate WindowManager views. Their touch coordinates can diverge from the
+    // Activity content view around system-bar insets, so a visible submenu item may hit a row in its parent menu.
+    // Keep every level of the menu chain in the top-level target's coordinate space. JUCE preserves the original
+    // target for submenus even when getTargetComponent() is null, so prefer it over an intermediate parent view.
+    if (auto* target = options.getTopLevelTargetComponent())
+        if (auto* root = target->getTopLevelComponent())
+            return root;
+
+    if (auto* parent = options.getParentComponent())
+        if (auto* root = parent->getTopLevelComponent())
+            return root;
+
+    if (auto* target = options.getTargetComponent())
+        return target->getTopLevelComponent();
+#endif
+    return juce::LookAndFeel_V4::getParentComponentForMenuOptions (options);
+}
+
 void LookAndFeel::preparePopupMenuWindow (juce::Component& window)
 {
     juce::LookAndFeel_V4::preparePopupMenuWindow (window);
@@ -1290,10 +1313,10 @@ void LookAndFeel::drawDocumentWindowTitleBar (juce::DocumentWindow& window, juce
 juce::Button* LookAndFeel::createDocumentWindowButton (int buttonType)
 {
     if (buttonType == juce::DocumentWindow::closeButton)
-        return new CaptionButton ("close", Icon::close, true);
+        return new CaptionButton ("close", Icon::close, true, false);
     if (buttonType == juce::DocumentWindow::minimiseButton)
-        return new CaptionButton ("minimise", Icon::minimise, false);
-    return new CaptionButton ("maximise", Icon::maximise, false);
+        return new CaptionButton ("minimise", Icon::minimise, false, true);
+    return new CaptionButton ("maximise", Icon::maximise, false, false);
 }
 
 void LookAndFeel::drawCornerResizer (juce::Graphics& g, int w, int h, bool isMouseOver, bool isMouseDragging)

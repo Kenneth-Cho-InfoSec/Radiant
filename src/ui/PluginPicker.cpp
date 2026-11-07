@@ -63,7 +63,7 @@ public:
         }
         if (onBuiltIn) // FL's VFX note effects, built in (round 164b)
             for (const auto kind : vfx::allKinds)
-                entries.push_back ({ builtInPrefix + std::to_string ((int) kind), vfx::flName (kind), "LYNX SHARE", "Built-in", "Note effect", true });
+                entries.push_back ({ builtInPrefix + std::to_string ((int) kind), vfx::flName (kind), "Radiant", "Built-in", "Note effect", true });
 
         for (auto* b : { &instrumentsTab, &effectsTab })
         {

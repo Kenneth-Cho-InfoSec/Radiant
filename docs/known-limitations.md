@@ -1,0 +1,15 @@
+# Known limitations
+
+These are current development gaps, not final release limitations.
+
+- The current APK is an engineering debug build (about 365 MiB with both ARM64 and x86_64 debug libraries). No optimized release or signed package has been produced.
+- API 29/API 36 x86_64 launches and host/lifecycle instrumentation are verified. API 29 and API 36 SAF CreateDocument/OpenDocument round trips, microphone permission/capture-service arm/disarm, and background playback service behavior also passed. Android 17/API 37 is the current target SDK but no API 37 system image is installed, so its target-specific while-in-use background-audio rule still needs runtime validation. One ARM64 physical runtime check passed on a Samsung SM-X218U running Android 16/API 36; other devices and OS versions still need coverage.
+- The Samsung SM-X218U opened its speaker output at 48 kHz with a reported 1,920-frame block and passed a short transport start/stop check. End-to-end latency, underruns, sustained playback, thermal behavior, and routes beyond the built-in speaker are not validated. The Android microphone permission and foreground-service path passed on an API 36 emulator, but physical input and captured audio takes remain unverified.
+- SAF CreateDocument/OpenDocument round trips for both `.lynx` and `.radiant` work on API 29 and API 36, and API 36 manual Save current/resave has passed. Multiple providers, revoked URI grants, interrupted writes, sample-folder access and large project documents need coverage.
+- Current compact navigation focuses one DAW pane at a time. Broader phone touch editing, stylus/keyboard arbitration and split-screen behavior need testing.
+- A current Pixel 8 portrait screenshot shows the top control strip clipped at the right edge. Phone layout correction and physical retest remain outstanding.
+- Tablet width classes use one selected editor with bottom navigation below 840 dp and the multi-pane workspace with a navigation rail at 840 dp and above. At a 640x400 dp resizable window, the editor's vertical area is short; full-height portrait and expanded tablet layouts render correctly.
+- Android SAF import is verified with a synthetic FLP containing only a tempo event, including save to `.radiant` and reopen. Process-death detection and recovery from a staged 137 BPM backup passed on the API 36 tablet AVD; the app also wrote its final backup on clean close. The periodic autosave interval and recovery of a naturally edited project after process death remain unverified. Representative FLPs with patterns, instruments, effects, automation, plugin state and sample files remain unvalidated; audio export and physical recording remain outstanding.
+- External desktop VST3/CLAP/VST2/LV2 binaries and the upstream process sandbox are not loaded on Android. Preserve original plugin data and verify round-trip through desktop builds.
+- Some FL imports depend on user-owned factory data or desktop DLLs. ONNX Runtime Android ARM64 availability is unverified.
+- Upstream is AGPL-3.0; JUCE and bundled-resource license obligations still need a distribution-focused audit.

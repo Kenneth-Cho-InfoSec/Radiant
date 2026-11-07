@@ -1,6 +1,7 @@
 #include "core/FlAutoSlicer.h"
 
 #include "core/FlResampler.h"
+#include "core/X87Math.h"
 
 #include <algorithm>
 #include <array>
@@ -18,7 +19,7 @@ namespace lynx::flslice
 {
 namespace
 {
-#if defined(__x86_64__) || defined(__i386__)
+#if LYNX_HAS_X87_EXTENDED
 using ext = long double; // the plugin's x87 filter keeps its state in extended precision
 #else
 using ext = double;
@@ -90,7 +91,7 @@ void magnitudes (const float* x, float* mag)
 }
 
 // FL's x87 control word in the library's sample reader: 64-bit precision, rounding toward −∞
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Down
 {
     unsigned short saved = 0;

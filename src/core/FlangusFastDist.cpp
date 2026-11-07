@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "core/Instruments.h"
+#include "core/X87Math.h"
 
 #if defined(__clang__)
 #pragma clang fp contract(off)
@@ -28,7 +29,7 @@ namespace
 using ld = long double;
 
 // x87 control word for the duration of a kernel: 64-bit precision, nearest or toward zero
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Mode
 {
     unsigned short saved = 0;

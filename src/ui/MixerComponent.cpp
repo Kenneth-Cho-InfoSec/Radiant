@@ -2243,7 +2243,7 @@ juce::PopupMenu MixerStrips::buildMenu (int t)
             lynx::ui::launchChooser (chooser, juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles, [safe, targets] (const juce::FileChooser& fc) {
                 if (safe != nullptr && fc.getResult().existsAsFile() && ! mixerpresets::loadOnTracks (safe->engine, targets, fc.getResult()))
                     juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Open mixer track state"),
-                                                            tr ("This file is not a mixer track state LYNX SHARE can read."));
+                                                            tr ("This file is not a mixer track state Radiant can read."));
             });
         });
         file.addItem (tr ("Save mixer track state as...") + "\tCtrl+Shift+S", [this, t, trackName] {
@@ -2898,7 +2898,7 @@ juce::String addableEffectName (EffectKind kind)
     // LYNX's own pitch / frequency effects sit next to FL's look-alikes (Pitch Shifter, Frequency Shifter, Pitcher)
     // in the lists: tell them apart (round 162, issue #7 review)
     if (kind == EffectKind::pitchShift || kind == EffectKind::freqShift || kind == EffectKind::pitchCorrect)
-        return tr ("{0} (LYNX SHARE)", { name });
+        return tr ("{0} (Radiant)", { name });
     if (const auto* e = natives::effectEngine (kind))
     {
         if (! natives::available (*e, flStudioAccess()))
@@ -3423,7 +3423,7 @@ void addItems (juce::PopupMenu& menu, AudioEngine& engine, bool newProjects)
         juce::PopupMenu chain;
         const std::pair<const char*, MasterChain> chains[] = { { TR_NOOP ("Empty (nothing on the Master)"), MasterChain::empty },
                                                                { TR_NOOP ("Soft clipper only"), MasterChain::clipper },
-                                                               { TR_NOOP ("LYNX SHARE default (limiter)"), MasterChain::lynxDefault } };
+                                                               { TR_NOOP ("Radiant default (limiter)"), MasterChain::lynxDefault } };
         for (const auto& [label, c] : chains)
             chain.addItem (tr (label), true, d.master == c, [c = c] {
                 newProjectDefaults().master = c;
@@ -4125,7 +4125,7 @@ void EffectsPanel::paint (juce::Graphics& g)
         g.setColour (colour::info);
         g.setFont (font (type::caption));
         const auto original = juce::String::fromUTF8 (substituteOriginalName (slot).c_str());
-        textcache::drawText (g, engine.getSong().substitutesBypassed ? tr ("LYNX SHARE substitute for {0} (bypassed)", { original }) : tr ("LYNX SHARE substitute for {0}", { original }),
+        textcache::drawText (g, engine.getSong().substitutesBypassed ? tr ("Radiant substitute for {0} (bypassed)", { original }) : tr ("Radiant substitute for {0}", { original }),
                     10 + titleWidth + 10, titleY,
                     juce::jmax (0, titleRight - 20 - titleWidth), 20, juce::Justification::centredLeft, true);
     }
@@ -4976,7 +4976,7 @@ bool EffectsPanel::dropPreset (const juce::File& file, juce::Point<int> position
     if (! fx)
     {
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, tr ("Preset"),
-                                                tr ("LYNX SHARE can't build an effect from this preset."));
+                                                tr ("Radiant can't build an effect from this preset."));
         return false;
     }
 
@@ -5158,7 +5158,7 @@ void EffectsPanel::showAddMenu (int row)
     auto picks = quickpick::renamedEffects (engine, addFx);
     quickpick::addPicks (menu, picks);
     // rounds 166f / 170b (Busy Works: "random order"): every effect under its category heading, A-Z, as FL's slot menu
-    // (LYNX SHARE first, then FL's Plugin database categories, the user's own folders among them)
+    // (Radiant first, then FL's Plugin database categories, the user's own folders among them)
     quickpick::addFolderGroups (menu, engine, std::function<void (EffectSlot)> (addFx));
 
     // LYNX equivalents of well-known third-party effects, with the same default preset a substitute gets
@@ -5168,7 +5168,7 @@ void EffectsPanel::showAddMenu (int row)
             equivalents.addItem (juce::String::fromUTF8 (entry.product.c_str()) + juce::String::fromUTF8 (" \xe2\x86\x92 ") + juce::String::fromUTF8 (effectInfo (entry.effect).name),
                                  [place, entry] { place (makeSubstituteSlot (entry)); });
     if (equivalents.getNumItems() > 0)
-        menu.addSubMenu (tr ("LYNX SHARE equivalents"), equivalents);
+        menu.addSubMenu (tr ("Radiant equivalents"), equivalents);
 
     juce::PopupMenu plugins;
     addPluginItems (plugins, engine, false, [this, place] (PluginRef ref) {
@@ -5322,7 +5322,7 @@ void EffectsPanel::showSlotMenu (int slot)
         menu.addSubMenu (hasSpare ? tr ("A/B compare (B stored)") : tr ("A/B compare"), ab);
     }
     if ((*slots())[(std::size_t) slot].isSubstitute()) // A/B of every substitute of the project at once (round 113)
-        menu.addItem (tr ("Bypass all LYNX SHARE substitutes of this project"), true, engine.getSong().substitutesBypassed, [this] {
+        menu.addItem (tr ("Bypass all Radiant substitutes of this project"), true, engine.getSong().substitutesBypassed, [this] {
             engine.editSong ([] (Song& song) { song.substitutesBypassed = ! song.substitutesBypassed; });
             repaint();
         });
@@ -5444,6 +5444,8 @@ juce::String issueText (const AudioEngine::RecordingNotice& notice)
         case I::noDevice: return tr ("No audio device is open. Choose one in Settings > Audio.");
         case I::noInputDevice:
             return tr ("No audio input device was found. Connect a microphone or an audio interface, then choose it as the input device in Settings > Audio.");
+        case I::permissionRequired:
+            return tr ("Radiant needs microphone permission to use audio input. Enable Record input audio or choose an input device again, then allow microphone access.");
         case I::noInputOpen: return tr ("No audio input is open, so nothing can be recorded. Choose an input device in Settings > Audio.");
         case I::armedWithoutInput:
             return tr ("Please select an audio input first: the armed insert has none. Click the input box above the insert's effect slots in the Mixer.");

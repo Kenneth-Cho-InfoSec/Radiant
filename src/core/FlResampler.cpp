@@ -1,4 +1,5 @@
 #include "core/FlResampler.h"
+#include "core/X87Math.h"
 
 #include <algorithm>
 #include <cmath>
@@ -35,7 +36,7 @@ constexpr float hermite[6][3] = {
     { 3.0f / 256.0f, -25.0f / 256.0f, 75.0f / 128.0f }, // t^0, sums
 };
 
-#if defined(__x86_64__) || defined(__i386__)
+#if LYNX_HAS_X87_EXTENDED
 using ext = long double; // the x87 format with GCC/Clang on x86
 #else
 using ext = double;
@@ -95,7 +96,7 @@ void sinc (const Kernel& k, const float* tl, const float* tr, double fracIn, flo
         seed[4] = (float) t;
         seed[0] = (float) (t * c2 - a);
     }
-#if defined(__x86_64__) || defined(__i386__)
+#if LYNX_HAS_X87_EXTENDED
     const ext piX = 3.14159265358979323846264338327950288L;
 #else
     const ext piX = pi;

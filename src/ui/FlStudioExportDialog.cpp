@@ -278,7 +278,7 @@ void showFlStudioExportDialog (AudioEngine& engine, const juce::File& suggestedF
 {
     juce::DialogWindow::LaunchOptions options;
     options.dialogTitle = tr ("Export to FL Studio");
-    options.content.setOwned (fitContentToScreen (std::make_unique<FlExportPanel> (engine, suggestedFolder, projectName.isNotEmpty() ? projectName : "LYNX SHARE", true)).release());
+    options.content.setOwned (fitContentToScreen (std::make_unique<FlExportPanel> (engine, suggestedFolder, projectName.isNotEmpty() ? projectName : "Radiant", true)).release());
     options.dialogBackgroundColour = theme::colour::bg2;
     options.useNativeTitleBar = true;
     options.resizable = false;
@@ -288,6 +288,6 @@ void showFlStudioExportDialog (AudioEngine& engine, const juce::File& suggestedF
 
 std::unique_ptr<juce::Component> makeFlStudioExportPanel (AudioEngine& engine)
 {
-    return std::make_unique<FlExportPanel> (engine, juce::File(), "LYNX SHARE", false);
+    return std::make_unique<FlExportPanel> (engine, juce::File(), "Radiant", false);
 }
 } // namespace lynx

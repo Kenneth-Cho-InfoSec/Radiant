@@ -55,6 +55,7 @@
 #include "core/WavPack.h"
 #include "core/SampleFiles.h"
 #include "core/FlWrapper.h"
+#include "core/X87Math.h"
 #include "core/FlPluginDb.h"
 #include "core/MissingFiles.h"
 #include "core/PianoRollTools.h"
@@ -207,7 +208,7 @@ struct Register
 // LYNX_X87_TOL overrides it (measuring).
 inline float armTolerance (float x86, float arm)
 {
-#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+#if LYNX_HAS_X87_EXTENDED
     (void) arm;
     return x86;
 #else
@@ -2590,6 +2591,88 @@ TEST (flp_import_maps_channels_and_rescales)
     CHECK (s.patterns[0].notes[0].channel == 2);
     CHECK (s.patterns[0].notes[0].length == lynx::ticksPerStep); // step note
     CHECK (std::abs (s.patterns[0].notes[0].velocity - 0.5f) < 1e-6f);
+}
+
+TEST (midi_import_creates_track_channels_and_realigns)
+{
+    lynx::midiimport::ParsedMidi midi;
+    midi.trackNames = { "Lead", "Bass" };
+    midi.bpm = 128.0;
+    midi.numerator = 3;
+    midi.denominator = 4;
+    midi.events = {
+        { 0,  960, 0x90, 60, 100 }, // Lead: note on
+        { 0, 1440, 0x90, 60,   0 }, // velocity-zero note on closes it
+        { 0, 1920, 0xB0,  7,  64 }, // Lead volume controller
+        { 1, 1440, 0x91, 48,  90 }, // Bass: MIDI channel 2
+        { 1, 1920, 0x81, 48,   0 },
+    };
+
+    lynx::midiimport::Options options;
+    options.newProject = true;
+    options.realign = true;
+    options.controller = 7;
+    auto song = lynx::Song::makeDefault();
+    std::string error;
+    const auto imported = lynx::midiimport::importInto (song, midi, options, "Song MIDI", error);
+    CHECK (imported && error.empty());
+    if (! imported)
+        return;
+
+    CHECK (song.bpm == 128.0 && song.beatsPerBar == 3);
+    CHECK (song.channels.size() == 2 && song.patterns.size() == 1 && song.currentPattern == 0);
+    CHECK (song.channels[0].name == "Lead" && song.channels[1].name == "Bass");
+    CHECK (song.channels[0].instrument == lynx::InstrumentKind::synth && song.channels[1].instrument == lynx::InstrumentKind::synth);
+    CHECK (song.patterns[0].name == "Song MIDI" && song.patterns[0].notes.size() == 2);
+    const auto& lead = song.patterns[0].notes[0];
+    const auto& bass = song.patterns[0].notes[1];
+    CHECK (lead.channel == 0 && lead.key == 60 && lead.start == 0 && lead.length == 480);
+    CHECK (std::abs (lead.velocity - 100.0f / 127.0f) < 1e-6f);
+    CHECK (bass.channel == 1 && bass.key == 48 && bass.start == 480 && bass.length == 480);
+    CHECK (song.patterns[0].events.size() == 1);
+    const auto& volume = song.patterns[0].events[0];
+    CHECK (volume.target.kind == lynx::AutomationTargetKind::channelVolume && volume.target.index == 0);
+    CHECK (volume.events.size() == 1 && volume.events[0].tick == 960);
+    CHECK (std::abs (volume.events[0].value - 64.0f / 127.0f) < 1e-6f);
+}
+
+TEST (midi_import_into_piano_roll_channel_replaces_and_blends)
+{
+    auto song = lynx::Song::makeDefault();
+    auto& pattern = song.patterns[0];
+    pattern.notes = { { 0, 120, 4, 48 }, { 240, 120, 4, 50 }, { 120, 120, 1, 40 } };
+
+    lynx::midiimport::ParsedMidi midi;
+    midi.trackNames = { "Synth lead" };
+    midi.events = { { 0,  960, 0x90, 72, 127 }, { 0, 1440, 0x80, 72, 0 } };
+    lynx::midiimport::Options options;
+    options.realign = true;
+    std::string error;
+    const auto replaced = lynx::midiimport::importIntoChannel (song, 4, midi, options, error);
+    CHECK (error.empty() && replaced.size() == 1);
+    if (replaced.size() != 1)
+        return;
+
+    CHECK (pattern.notes.size() == 2);
+    CHECK (replaced[0] == 0 && pattern.notes[0].channel == 4 && pattern.notes[0].key == 72);
+    CHECK (pattern.notes[0].start == 0 && pattern.notes[0].length == 480 && pattern.notes[0].velocity == 1.0f);
+    CHECK (pattern.notes[1].channel == 1 && pattern.notes[1].key == 40 && pattern.notes[1].start == 120);
+
+    lynx::midiimport::ParsedMidi second;
+    second.trackNames = { "Synth lead" };
+    second.events = { { 0, 1920, 0x90, 76, 100 }, { 0, 2400, 0x80, 76, 0 } };
+    options.blend = true;
+    options.realign = false;
+    error.clear();
+    const auto blended = lynx::midiimport::importIntoChannel (song, 4, second, options, error);
+    CHECK (error.empty() && blended.size() == 1);
+    if (blended.size() != 1)
+        return;
+
+    CHECK (pattern.notes.size() == 3 && blended[0] == 2);
+    CHECK (pattern.notes[blended[0]].channel == 4 && pattern.notes[blended[0]].key == 76);
+    CHECK (pattern.notes[blended[0]].start == 1920 && pattern.notes[blended[0]].length == 480);
+    CHECK (pattern.notes[0].key == 72 && pattern.notes[1].channel == 1);
 }
 
 TEST (live_queue_is_fifo_and_bounded)

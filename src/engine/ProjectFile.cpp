@@ -2344,7 +2344,7 @@ std::optional<Song> fromJson (const juce::String& json, juce::String& error)
 
     if ((int) root["version"] > currentVersion)
     {
-        error = utf8 ("project saved by a newer version of LYNX SHARE");
+        error = utf8 ("project saved by a newer version of Radiant");
         return std::nullopt;
     }
 
@@ -2784,7 +2784,7 @@ std::optional<MixerTrack> mixerTrackStateFromJson (const juce::String& json, juc
     const auto root = juce::JSON::parse (json);
     if (root["format"].toString() != "lynx-mixer-track" || ! root["track"].isObject())
     {
-        error = utf8 ("not a LYNX SHARE mixer track state");
+        error = utf8 ("not a Radiant mixer track state");
         return std::nullopt;
     }
     return mixerTrackFromVar (root["track"]);

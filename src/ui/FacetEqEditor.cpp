@@ -1883,7 +1883,7 @@ public:
         : DocumentWindow (title, theme::colour::bg1, DocumentWindow::closeButton | DocumentWindow::minimiseButton),
           gone (engine, track, slot, [this] { closeButtonPressed(); })
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         setContentOwned (new FacetEqEditor (engine, track, slot, false), true);
         setResizable (true, false);
         if (auto* c = getConstrainer())

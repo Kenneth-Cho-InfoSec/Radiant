@@ -620,7 +620,7 @@ ui::Hint PerformanceMeter::hintAt (juce::Point<int> p)
     }
     else if (p.x < getWidth() * 58 / 100)
     {
-        h.text = tr ("RAM: memory used by LYNX SHARE (samples, plugins, undo history)");
+        h.text = tr ("RAM: memory used by Radiant (samples, plugins, undo history)");
         h.value = juce::String ((double) memory / (1024.0 * 1024.0), 0) + " MB";
     }
     else
@@ -1111,7 +1111,7 @@ EditOverlay::EditOverlay (Host h, int height) : host (std::move (h)), toolbarHei
         if (id > 0)
             apply (toolbarlayout::applyPreset (host.layout(), (toolbarlayout::Preset) (id - 1)));
     };
-    ui::setHint (presetBox, tr ("Toolbar presets: which panels show (LYNX SHARE's own layouts)"), false);
+    ui::setHint (presetBox, tr ("Toolbar presets: which panels show (Radiant's own layouts)"), false);
     resetButton.setButtonText (tr ("Reset"));
     resetButton.onClick = [this] {
         auto l = toolbarlayout::Layout::makeDefault();

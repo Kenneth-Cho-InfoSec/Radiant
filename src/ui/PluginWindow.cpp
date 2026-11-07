@@ -503,7 +503,7 @@ public:
           owner (std::move (keepAlive)),
           plugin (p)
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         useClassicRendering();
 
         crashguard::note (("opening the editor of " + plugin.getName()).toStdString()); // session breadcrumb (round 111)

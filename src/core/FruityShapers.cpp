@@ -1,4 +1,5 @@
 #include "core/FruityShapers.h"
+#include "core/X87Math.h"
 
 // Fruity WaveShaper and Fruity Soft Clipper, exact engines (docs/analise/REA_rodada51.md). Clean-room: written from
 // the behaviour, formulas and data layouts described there; nothing of Image-Line's code or data is copied.
@@ -30,7 +31,7 @@ namespace
 using ld = long double;
 
 // ------------------------------------------------------------------------------------------- x87 control word (§1.3)
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Mode
 {
     unsigned short saved = 0;
@@ -60,7 +61,7 @@ struct X87Mode
 
 // long double → integer in the current x87 rounding mode (what the plugins' fist/fistp do), without the control-word
 // round trip a C++ conversion makes; |v| < 2^63
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 inline long long x87Int (long double v) noexcept
 {
     long long r;

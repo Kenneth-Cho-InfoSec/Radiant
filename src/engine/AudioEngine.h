@@ -7,6 +7,7 @@
 #include <tuple>
 #include <utility>
 #include <functional>
+#include <memory>
 
 #include <juce_audio_utils/juce_audio_utils.h>
 
@@ -355,6 +356,7 @@ public:
         none,
         noDevice,          // no audio device open at all
         noInputDevice,     // the driver has no input device
+        permissionRequired,// Android microphone permission has not been granted
         noInputOpen,       // recording with no input open
         armedWithoutInput, // armed inserts, none with an input source
         insertWithoutInput,// one armed insert (track) has no input source
@@ -371,7 +373,7 @@ public:
     };
     // Opens the input of the current driver: `deviceName` (separate-input drivers; empty = the one chosen in
     // Settings, else the default), all of its channels. UI thread.
-    RecordingNotice openAudioInput (const juce::String& deviceName = {});
+    RecordingNotice openAudioInput (const juce::String& deviceName = {}, bool promptForPermission = false);
     bool hasAudioInput() const;
     // Closes the device input again when nothing needs it (no insert takes an input, no armed recording, no hardware
     // insert returning from it): a capture the Audio editor opened for one recording no longer keeps the input — and
@@ -889,6 +891,10 @@ private:
     std::unique_ptr<DeviceStateSaver> deviceStateSaver;
 
     // audio recording
+    struct RecordingPermissionContext;
+    std::shared_ptr<RecordingPermissionContext> recordingPermissionContext;
+    std::atomic<bool> recordingPermissionPending { false };
+    std::atomic<std::uint64_t> recordingPermissionGeneration { 0 };
     bool audioArmed = false;
     juce::String recordingError;
     juce::File recordingFolder = defaultRecordingFolder();
@@ -896,6 +902,8 @@ private:
     std::vector<juce::File> sessionRecordings;
     juce::TimeSliceThread recordThread { "LYNX recording" };
     RecordingNotice recordingNotice;
+    void requestAudioInputPermission (std::function<void (AudioEngine&, bool)> completion);
+    void armAudioRecordingGranted();
     void notify (InputIssue issue, int track = 0, const juce::String& detail = {});
     // One take being recorded (round 163): the audio thread pushes into `stream`, the recording thread drains it
     // into `writer` (crash-safe WAV). Shared by the UI (start/finish), the audio thread (raw pointer under

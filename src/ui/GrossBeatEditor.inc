@@ -397,7 +397,7 @@
         menu.addSeparator();
         menu.addItem (tr ("Rename..."), [this] { gbRename(); });
         menu.addSubMenu (tr ("Factory slots"), gbFactorySlots());
-        menu.addItem (tr ("Load LYNX SHARE's factory slots (keeps the selected slots)"), [this] { gbWriteState (gbWithFactory()); });
+        menu.addItem (tr ("Load Radiant's factory slots (keeps the selected slots)"), [this] { gbWriteState (gbWithFactory()); });
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withTargetScreenArea (localAreaToGlobal (at.toNearestInt())));
     }
 
@@ -533,7 +533,7 @@
         return name.empty() ? tr ("Slot {0}", { juce::String (slot + 1) }) : juce::String::fromUTF8 (name.c_str());
     }
 
-    // the factory slot browser: LYNX SHARE's slots of the shown kind; the one picked replaces the selected slot
+    // the factory slot browser: Radiant's slots of the shown kind; the one picked replaces the selected slot
     juce::PopupMenu gbFactorySlots()
     {
         static const auto factory = grossbeat::factoryState();
@@ -669,7 +669,7 @@
         {
             const auto part = gbToolAt (item, p);
             if (part == 0)
-                return tr ("Options: copy, paste, flip, reset or rename the slot; LYNX SHARE's factory slots");
+                return tr ("Options: copy, paste, flip, reset or rename the slot; Radiant's factory slots");
             if (part >= 1 && part <= 7)
                 return tr ("Snap: {0} (Alt while editing: the other way)", { tr (gbSnapName (part - 1)) });
             if (part == 8 || part == 9)
@@ -699,7 +699,7 @@
         if (isGbItem (item, "gbtabs"))
         {
             const auto part = gbTabAt (item, p);
-            return part == 2 ? tr ("Factory slots: put one of LYNX SHARE's slots in the selected slot")
+            return part == 2 ? tr ("Factory slots: put one of Radiant's slots in the selected slot")
                              : tr ("Envelope: {0}", { gbEditKind == 0 ? tr ("time travel") : tr ("volume") });
         }
         if (gbPointAt (item, p) >= 0)

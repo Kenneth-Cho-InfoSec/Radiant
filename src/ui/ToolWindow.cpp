@@ -13,7 +13,7 @@ public:
     ToolWindow (const juce::String& title, const juce::String& k)
         : juce::DocumentWindow (title, theme::colour::bg2, juce::DocumentWindow::closeButton), key (k)
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         all().add (this);
     }
 

@@ -647,11 +647,30 @@ struct GlSceneRenderer::Impl
         std::vector<std::uint8_t> rows ((std::size_t) w * (std::size_t) h * 4);
         glBindFramebuffer (GL_FRAMEBUFFER, out.getFrameBufferID());
         glPixelStorei (GL_PACK_ALIGNMENT, 4);
+       #if JUCE_ANDROID
+        // GLES on Android guarantees RGBA readback; GL_BGRA is not part of the GLES2 interface.
+        glReadPixels (0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rows.data());
+       #else
         glReadPixels (0, 0, w, h, GL_BGRA, GL_UNSIGNED_BYTE, rows.data());
+       #endif
         glBindFramebuffer (GL_FRAMEBUFFER, context->getFrameBufferID());
         const auto stride = (std::size_t) w * 4;
         for (int y = 0; y < h; ++y) // GL's first row is the bottom one
-            std::memcpy (bgra + (std::size_t) y * stride, rows.data() + (std::size_t) (h - 1 - y) * stride, stride);
+        {
+            auto* destination = bgra + (std::size_t) y * stride;
+            const auto* source = rows.data() + (std::size_t) (h - 1 - y) * stride;
+           #if JUCE_ANDROID
+            for (int x = 0; x < w; ++x)
+            {
+                destination[x * 4 + 0] = source[x * 4 + 2];
+                destination[x * 4 + 1] = source[x * 4 + 1];
+                destination[x * 4 + 2] = source[x * 4 + 0];
+                destination[x * 4 + 3] = source[x * 4 + 3];
+            }
+           #else
+            std::memcpy (destination, source, stride);
+           #endif
+        }
         return glGetError() == GL_NO_ERROR || true;
     }
 };

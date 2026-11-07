@@ -445,7 +445,7 @@ private:
         const auto fxEntries = quickpick::effectEntries (engine);
 
         // FL's Plugin database folders as the categories (round 170b: the user's folder, else FL's category for FL's
-        // plugins, else "LYNX SHARE"). FL lists only the Plugin database's Generators and Effects: a third-party plugin
+        // plugins, else "Radiant"). FL lists only the Plugin database's Generators and Effects: a third-party plugin
         // in no folder of it isn't in the picker (the "..." at the ends open Installed in the Browser)
         std::vector<plugincatalog::BuiltinPlugin> genBuiltins, fxBuiltins;
         for (const auto& g : genEntries)

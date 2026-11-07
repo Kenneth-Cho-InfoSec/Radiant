@@ -1,4 +1,5 @@
 #include "core/Granulizer.h"
+#include "core/X87Math.h"
 #include "core/HostSlide.h"
 #include "core/ModelParams.h"
 
@@ -145,7 +146,7 @@ const ld piX87 = 3.14159265358979323846264338327950288L; // fldpi
 // rounding toward −∞ for every x87 operation and store (SSE code keeps rounding to nearest). The guard sets the same
 // rounding for LYNX's long double arithmetic (x87 on x86 GCC/Clang); the x87 parts live in noinline functions so the
 // compiler cannot move them out of the guarded region.
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Down
 {
     unsigned short saved = 0;

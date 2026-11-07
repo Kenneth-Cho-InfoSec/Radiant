@@ -287,7 +287,7 @@ public:
         : DocumentWindow (title, theme::colour::bg2, DocumentWindow::closeButton),
           gone (engine, track, slot, [this] { closeButtonPressed(); })
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         setContentOwned (new FormulaEditor (engine, track, slot), true);
         setResizable (true, false);
         centreWithSize (getWidth(), getHeight());

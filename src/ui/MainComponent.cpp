@@ -622,8 +622,14 @@ MainComponent::MainComponent (AudioEngine& e, bool restoreUserSettings)
     refreshToolbar();
     refreshPanelButtons();
     setToolbarLayout (toolbarLayout, false); // icon sizes and row height (loaded with the UI options)
+#if JUCE_ANDROID
+    // Enlarge the JUCE editor surface by 10% on Android. The Compose title bar stays at platform size.
+    toolbarLayout.uiScale = 110;
+    juce::Desktop::getInstance().setGlobalScaleFactor (1.10f);
+#else
     if (persistent && toolbarLayout.uiScale != 100)
         juce::Desktop::getInstance().setGlobalScaleFactor ((float) toolbarLayout.uiScale / 100.0f);
+#endif
 
     setControlHints();
     fittedChannelCount = (int) engine.getSong().channels.size();
@@ -682,7 +688,7 @@ MainComponent::MainComponent (AudioEngine& e, bool restoreUserSettings)
         safe->projectName = hostName.isNotEmpty() ? tr ("Live session with {0}", { hostName }) : tr ("Live session");
         safe->updateTitle();
     };
-    // round 169j: the host's LYNX SHARE restarted during a session: its journal's song becomes the open project again
+    // round 169j: the host's Radiant restarted during a session: its journal's song becomes the open project again
     live->onResumed = [safe = juce::Component::SafePointer<MainComponent> (this)] (Song song) {
         if (safe == nullptr)
             return;
@@ -1169,6 +1175,40 @@ void MainComponent::resized()
         setupOverlay->setBounds (getLocalBounds());
         setupOverlay->toFront (false);
     }
+    if (androidCompact)
+        for (auto& button : panelButtons)
+            button.setVisible (false); // Compose's Material navigation owns compact panel switching.
+}
+
+void MainComponent::setAndroidCompactMode (bool compact)
+{
+    if (androidCompact == compact)
+        return;
+
+    if (compact)
+    {
+        androidWideLayout = workspace.getLayoutText();
+        androidCompact = true;
+        workspace.setMobileMode (true);
+        workspace.showOnlyPanel ((Panel) androidPanel);
+        return;
+    }
+
+    androidCompact = false;
+    workspace.setMobileMode (false);
+    if (androidWideLayout.isNotEmpty())
+        workspace.applyLayoutText (androidWideLayout);
+    androidWideLayout.clear();
+    resized();
+}
+
+void MainComponent::setAndroidPanel (int panel)
+{
+    androidPanel = juce::jlimit (0, workspace::panelCount - 1, panel);
+    if (androidCompact)
+        workspace.showOnlyPanel ((Panel) androidPanel);
+    else
+        workspace.show ((Panel) androidPanel);
 }
 
 // --- toolbar layout ------------------------------------------------------------------------------
@@ -1820,7 +1860,7 @@ void MainComponent::connectBrowser (BrowserComponent& b)
             return false;
         if (! mixer.loadPresetOnSelection (file))
             juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Open mixer track state"),
-                                                    tr ("This file is not a mixer track state LYNX SHARE can read."));
+                                                    tr ("This file is not a mixer track state Radiant can read."));
         return true;
     };
     // the Browser's "Current project" items (REA_rodada115)
@@ -2266,6 +2306,11 @@ void MainComponent::toggleMode()
 
 void MainComponent::togglePanel (Panel panel)
 {
+    if (androidCompact)
+    {
+        setAndroidPanel ((int) panel);
+        return;
+    }
     workspace.toggle (panel);
     refreshPanelButtons();
 }
@@ -2287,6 +2332,11 @@ void MainComponent::fitChannelRack (bool width)
 
 void MainComponent::showPanel (Panel panel)
 {
+    if (androidCompact)
+    {
+        setAndroidPanel ((int) panel);
+        return;
+    }
     workspace.show (panel);
     refreshPanelButtons();
 }
@@ -4058,7 +4108,7 @@ void MainComponent::timerCallback()
         PluginHost::settingsFolder().getChildFile ("plugin-crashes.log").appendText (lines[lines.size() - 1] + "\n");
         juce::AlertWindow::showMessageBoxAsync (
             juce::MessageBoxIconType::WarningIcon, tr ("Plugin crashed"),
-            tr ("The plugin \"{0}\" crashed and was switched off, so LYNX SHARE and your project kept running (the effect is bypassed, an "
+            tr ("The plugin \"{0}\" crashed and was switched off, so Radiant and your project kept running (the effect is bypassed, an "
                 "instrument stays silent). Save your project; the plugin loads again the next time you open it.",
                 { names[names.size() - 1] }));
     }
@@ -4180,10 +4230,10 @@ void MainComponent::timerCallback()
             if (lynx::rt::shouldShowHint (PluginHost::settingsFolder().getChildFile ("realtime-hint-shown")))
                 juce::AlertWindow::showMessageBoxAsync (
                     juce::MessageBoxIconType::InfoIcon, tr ("Real-time priority"),
-                    tr ("The sound broke up, and Linux runs LYNX SHARE's audio thread at normal priority. Real-time priority makes dropouts much rarer:\n\n"
+                    tr ("The sound broke up, and Linux runs Radiant's audio thread at normal priority. Real-time priority makes dropouts much rarer:\n\n"
                         "- install rtkit (package \"rtkit\"; most desktops already have it), or\n"
                         "- add yourself to the \"audio\" group with an rtprio limit in /etc/security/limits.d (as for JACK),\n\n"
-                        "then log out and in again. LYNX SHARE never needs root. Options > Audio settings shows the current state."));
+                        "then log out and in again. Radiant never needs root. Options > Audio settings shows the current state."));
         }
     }
 
@@ -4223,7 +4273,7 @@ void MainComponent::updateTitle()
             liveState = " [" + (st == S::live ? tr ("LIVE") : st == S::reconnecting ? tr ("Reconnecting...") : st == S::waitingHost ? tr ("Waiting for the host...") : tr ("Connecting...")) + "]";
         }
         window->setName ((engine.isModified() ? "* " : "")
-                         + (projectName.isNotEmpty() ? "LYNX SHARE - " + projectName : juce::String ("LYNX SHARE")) + importedSuffix + liveState);
+                         + (projectName.isNotEmpty() ? "Radiant - " + projectName : juce::String ("Radiant")) + importedSuffix + liveState);
     }
 }
 
@@ -4396,7 +4446,7 @@ juce::File newBackupFile (const juce::File& folder, const juce::String& stem, sa
 }
 } // namespace
 
-void MainComponent::autosave()
+void MainComponent::autosave (std::function<void (bool)> completion)
 {
     // backup copy of the open project, so work isn't lost if something crashes ("Song (autosaved on 2026-10-20 at
     // 14h19).lynx" in the backup folder, like FL's Backup folder); only the newest few of each project are kept
@@ -4404,7 +4454,11 @@ void MainComponent::autosave()
     // every plugin's state, encoded) runs on a thread of its own, so the timed backup no longer freezes the screen
     // (round 151: 180 ms every two minutes on a project with 71 plugins). One at a time.
     if (autosaveRunning->load())
+    {
+        if (completion)
+            completion (false);
         return;
+    }
     const auto folder = autosaveFolder();
     folder.createDirectory();
     const auto stem = projectStem (projectName);
@@ -4415,17 +4469,24 @@ void MainComponent::autosave()
     auto copy = std::make_shared<Song> (engine.getSong());
     const auto file = newBackupFile (folder, stem, safety::BackupKind::autosaved);
     autosaveRunning->store (true);
-    juce::Thread::launch ([copy, file, running = autosaveRunning, safe = juce::Component::SafePointer<MainComponent> (this), stem] {
+    juce::Thread::launch ([copy, file, running = autosaveRunning, safe = juce::Component::SafePointer<MainComponent> (this), stem,
+                           completion = std::move (completion)] {
         juce::String error;
         const auto ok = ProjectFile::save (*copy, file, error);
         running->store (false);
-        juce::MessageManager::callAsync ([safe, ok, error, stem] {
+        juce::MessageManager::callAsync ([safe, ok, error, stem, completion = std::move (completion)] () mutable {
             if (safe == nullptr)
+            {
+                if (completion)
+                    completion (false);
                 return;
+            }
             if (! ok)
                 ui::postHint ({ tr ("Autosave failed: {0}", { error }), {}, false, false }, 6000);
             else
                 safe->rotateBackups (stem);
+            if (completion)
+                completion (ok);
         });
     });
 }
@@ -4750,7 +4811,7 @@ void MainComponent::startSession()
     {
         const auto previousStart = juce::Time (sessionMarker.loadFileAsString().trim().getLargeIntValue());
         juce::Timer::callAfterDelay (2500, [safe = juce::Component::SafePointer<MainComponent> (this), previousStart] {
-            if (safe != nullptr)
+            if (safe != nullptr && safe->sessionLock != nullptr)
                 safe->checkPreviousSession (previousStart);
         });
     }
@@ -4758,8 +4819,57 @@ void MainComponent::startSession()
     sessionMarker.replaceWithText (juce::String (juce::Time::getCurrentTime().toMilliseconds()));
     // takes that were recording when LYNX stopped (crash, power loss, closed while recording): after the backup offer
     juce::Timer::callAfterDelay (4000, [safe = juce::Component::SafePointer<MainComponent> (this)] {
-        if (safe != nullptr)
+        if (safe != nullptr && safe->sessionLock != nullptr)
             safe->checkInterruptedTakes();
+    });
+}
+
+void MainComponent::beginAndroidSession()
+{
+    // The Android host keeps MainComponent alive across Activity recreation, so session ownership follows
+    // attach/detach explicitly instead of relying on the desktop window's destructor.
+    if (sessionLock != nullptr)
+    {
+        androidSessionClosePending = false;
+        return;
+    }
+    startSession();
+}
+
+void MainComponent::endAndroidSession()
+{
+    if (sessionLock == nullptr || androidSessionClosePending)
+        return;
+
+    androidSessionClosePending = true;
+    writeAndroidSessionBackup();
+}
+
+void MainComponent::writeAndroidSessionBackup()
+{
+    if (sessionLock == nullptr || ! androidSessionClosePending)
+        return;
+
+    if (autosaveRunning->load())
+    {
+        juce::Timer::callAfterDelay (50, [safe = juce::Component::SafePointer<MainComponent> (this)] {
+            if (safe != nullptr)
+                safe->writeAndroidSessionBackup();
+        });
+        return;
+    }
+
+    autosave ([safe = juce::Component::SafePointer<MainComponent> (this)] (bool saved) {
+        if (safe == nullptr || ! safe->androidSessionClosePending)
+            return;
+
+        safe->androidSessionClosePending = false;
+        if (saved && ! safe->engine.isModified())
+            safe->sessionMarker.deleteFile();
+
+        // If the project still has unsaved edits, keep the marker so the next app launch offers this final snapshot.
+        // If the write failed, keeping it also makes the next session treat the shutdown as recoverable.
+        safe->sessionLock.reset();
     });
 }
 
@@ -4782,7 +4892,7 @@ void MainComponent::checkInterruptedTakes()
         names.add (juce::File (juce::String::fromUTF8 (j.wav.c_str())).getFileName());
     const auto folder = juce::File (juce::String::fromUTF8 (takes.front().wav.c_str())).getParentDirectory();
     auto* w = new juce::AlertWindow (tr ("Recordings recovered"),
-                                     tr ("LYNX SHARE was recording when it stopped. These takes were saved and repaired:\n{0}\n\nPut them on the Playlist "
+                                     tr ("Radiant was recording when it stopped. These takes were saved and repaired:\n{0}\n\nPut them on the Playlist "
                                          "where they were recorded?", { names.joinIntoString ("\n") }),
                                      juce::MessageBoxIconType::InfoIcon);
     w->addButton (tr ("Put them on the Playlist"), 1, juce::KeyPress (juce::KeyPress::returnKey));
@@ -4822,7 +4932,7 @@ void MainComponent::checkPreviousSession (juce::Time sessionStart)
         return; // nothing was saved in that session
     const auto backup = folder.getChildFile (juce::String::fromUTF8 (name.c_str()) + ProjectFile::extension);
 
-    auto* w = new juce::AlertWindow (tr ("LYNX SHARE did not close properly"),
+    auto* w = new juce::AlertWindow (tr ("Radiant did not close properly"),
                                      tr ("The last session ended unexpectedly. Open the newest backup it saved?\n{0}  ({1})",
                                          { backup.getFileName(), backup.getLastModificationTime().formatted ("%Y-%m-%d %H:%M") }),
                                      juce::MessageBoxIconType::WarningIcon);
@@ -4894,7 +5004,7 @@ void MainComponent::announceEditorCrash (const juce::String& plugin)
                        .withIconType (juce::MessageBoxIconType::WarningIcon)
                        .withTitle (tr ("Plugin crashed"))
                        .withMessage (tr ("{0} crashed. Save your project now (as a new file is safest).", { plugin }) + "\n\n"
-                                     + tr ("Its window was closed so that LYNX SHARE could keep running. The plugin may not work "
+                                     + tr ("Its window was closed so that Radiant could keep running. The plugin may not work "
                                            "properly until the project is opened again."))
                        .withButton (tr ("Save as..."));
     if (offerSeparate)
@@ -4933,7 +5043,7 @@ void MainComponent::announceSeparateProcessCrash (const juce::String& plugin, bo
                        .withIconType (juce::MessageBoxIconType::WarningIcon)
                        .withTitle (tr ("Plugin crashed"))
                        .withMessage ((crashed ? where : tr ("{0} stopped responding (separate process).", { name })) + "\n\n"
-                                     + tr ("Only its process was affected: LYNX SHARE and your project kept running, and the plugin "
+                                     + tr ("Only its process was affected: Radiant and your project kept running, and the plugin "
                                            "was muted. Save your project; the plugin loads again the next time you open it."))
                        .withButton (tr ("Save as..."))
                        .withButton (tr ("Close"));
@@ -4967,6 +5077,10 @@ void MainComponent::chooseFileToOpen()
 
 void MainComponent::chooseFileToOpenNow()
 {
+#if JUCE_ANDROID
+    androidStorageAction.store (1, std::memory_order_release);
+    return;
+#endif
     fileChooser = lynx::ui::makeFileChooser (tr ("Open project"), currentFile.getParentDirectory(),
                                                        juce::String ("*") + ProjectFile::extension + ";*.dawproj;*.flp;*.als;*.zip;*.lynxpack;*.mid;*.midi");
 
@@ -5053,6 +5167,65 @@ void MainComponent::openFile (const juce::File& file)
     openLynxProject (file);
 }
 
+void MainComponent::requestAndroidOpen()
+{
+    confirmDiscard ([safe = juce::Component::SafePointer<MainComponent> (this)] {
+        if (safe != nullptr)
+            safe->androidStorageAction.store (1, std::memory_order_release);
+    });
+}
+
+bool MainComponent::openAndroidProject (const juce::File& file, const juce::String& displayName)
+{
+    androidDisplayName = displayName;
+    if (file.hasFileExtension ("lynx;radiant"))
+    {
+        if (! openLynxProject (file))
+        {
+            androidDisplayName = {};
+            return false;
+        }
+
+        androidDocumentBacked = true;
+        projectName = displayName.isNotEmpty() ? displayName : file.getFileNameWithoutExtension();
+        updateTitle();
+        return true;
+    }
+
+    androidDocumentBacked = false;
+    openFile (file);
+    // Imports and packages become a new project and must use Save As. They do not overwrite the source document.
+    currentFile = juce::File();
+    if (displayName.isNotEmpty())
+    {
+        projectName = displayName;
+        updateTitle();
+    }
+    return true;
+}
+
+bool MainComponent::saveAndroidProject (const juce::File& file, const juce::String& displayName)
+{
+    if (file == juce::File() || ! file.getParentDirectory().createDirectory())
+        return false;
+
+    juce::String error;
+    engine.capturePluginStates();
+    keepOverwrittenCopy (file);
+    if (! ProjectFile::save (engine.getSong(), file, error))
+        return false;
+
+    engine.markSaved();
+    rememberRecent (file);
+    currentFile = file;
+    importedFlpFile = juce::File();
+    projectName = displayName.isNotEmpty() ? displayName : file.getFileNameWithoutExtension();
+    importedSuffix = {};
+    androidDocumentBacked = true;
+    updateTitle();
+    return true;
+}
+
 void MainComponent::importFlp (const juce::File& file)
 {
     juce::String error;
@@ -5072,7 +5245,8 @@ void MainComponent::flpImported (const juce::File& file)
     {
         currentFile = juce::File(); // imported: "Save" asks where to write the .lynx
         importedFlpFile = file;
-        projectName = file.getFileNameWithoutExtension();
+        projectName = androidDisplayName.isNotEmpty() ? androidDisplayName : file.getFileNameWithoutExtension();
+        androidDisplayName = {};
         rememberRecent (file);
         importedSuffix = " " + (file.hasFileExtension ("als") ? tr ("(imported from .als)") : tr ("(imported from FL Studio)"));
         updateTitle();
@@ -5087,7 +5261,7 @@ void MainComponent::flpImported (const juce::File& file)
     }
 }
 
-void MainComponent::openLynxProject (const juce::File& file)
+bool MainComponent::openLynxProject (const juce::File& file)
 {
     juce::String error;
     auto song = ProjectFile::load (file, error);
@@ -5095,7 +5269,7 @@ void MainComponent::openLynxProject (const juce::File& file)
     if (! song)
     {
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not open"), error);
-        return;
+        return false;
     }
 
     // missing plugins get their LYNX substitute; substitutes whose original is installed now go back to it
@@ -5120,6 +5294,7 @@ void MainComponent::openLynxProject (const juce::File& file)
         else if (engine.getSong().info.showOnOpen)
             openSettings (1);
     }
+    return true;
 }
 
 void MainComponent::openSettings (int page)
@@ -5332,7 +5507,7 @@ void MainComponent::showMissingFiles (bool afterOpening)
                     auto it = std::find_if (info.plugins.begin(), info.plugins.end(), [&] (const MissingPlugin& p) { return p.name == name; });
                     if (it == info.plugins.end())
                         it = info.plugins.insert (info.plugins.end(),
-                                                  MissingPlugin { name, {}, TR_NOOP ("LYNX SHARE substitute: {0} (the original plugin is used again once it is installed). FL Studio plays a missing plugin's slot unprocessed: a substitute slot's menu › Bypass all LYNX SHARE substitutes of this project does the same"),
+                                                  MissingPlugin { name, {}, TR_NOOP ("Radiant substitute: {0} (the original plugin is used again once it is installed). FL Studio plays a missing plugin's slot unprocessed: a substitute slot's menu › Bypass all Radiant substitutes of this project does the same"),
                                                                   effectInfo (fx.kind).name });
                     const auto user = song.mixer[t].name.empty() ? (t == 0 ? std::string ("Master") : "Insert " + std::to_string (t)) : song.mixer[t].name;
                     if (std::find (it->usedBy.begin(), it->usedBy.end(), user) == it->usedBy.end())
@@ -5399,21 +5574,32 @@ void MainComponent::importMidiFile()
     fileChooser = lynx::ui::makeFileChooser (tr ("Import MIDI file"), folder, "*.mid;*.midi");
     juce::Component::SafePointer<MainComponent> safe (this);
     lynx::ui::launchChooser (fileChooser, juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles, [safe] (const juce::FileChooser& fc) {
-        const auto file = fc.getResult();
-        if (safe == nullptr || file == juce::File())
+        const auto url = fc.getURLResult();
+        if (safe == nullptr || url.toString (false).isEmpty())
             return;
-        juce::String error;
-        const auto midi = MidiFileIo::parseFile (file, error);
-        if (! midi)
-        {
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"), error);
-            return;
-        }
-        static MidiFileIo::ImportOptions remembered; // FL keeps the window's choices
-        showMidiImportDialog (file.getFileName(), *midi, remembered, false, [safe, file] (const MidiFileIo::ImportOptions& o) {
-            remembered = o;
-            if (safe != nullptr)
-                safe->importMidiFile (file, o);
+        lynx::ui::readDocumentAsync (url, [safe] (lynx::ui::ReadDocumentResult loaded) {
+            if (safe == nullptr)
+                return;
+            if (loaded.error.isNotEmpty())
+            {
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"), loaded.error);
+                return;
+            }
+            juce::String error;
+            const auto midi = MidiFileIo::parseBytes (loaded.bytes.getData(), loaded.bytes.getSize(), error);
+            if (! midi)
+            {
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"), error);
+                return;
+            }
+            auto parsed = std::make_shared<midiimport::ParsedMidi> (std::move (*midi));
+            const auto fileName = loaded.name;
+            static MidiFileIo::ImportOptions remembered; // FL keeps the window's choices
+            showMidiImportDialog (fileName, *parsed, remembered, false, [safe, parsed, fileName] (const MidiFileIo::ImportOptions& o) {
+                remembered = o;
+                if (safe != nullptr)
+                    safe->importMidiFile (*parsed, fileName, o);
+            });
         });
     });
 }
@@ -5421,21 +5607,36 @@ void MainComponent::importMidiFile()
 void MainComponent::importMidiFile (const juce::File& file, const MidiFileIo::ImportOptions& o)
 {
     juce::String error;
+    const auto midi = MidiFileIo::parseFile (file, error);
+    if (! midi)
+    {
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"), error);
+        return;
+    }
+    importMidiFile (*midi, file.getFileName(), o);
+}
+
+void MainComponent::importMidiFile (const midiimport::ParsedMidi& midi, const juce::String& fileName,
+                                    const MidiFileIo::ImportOptions& o)
+{
+    const auto patternName = juce::File (fileName).getFileNameWithoutExtension().toStdString();
     if (o.newProject)
     {
-        confirmDiscard ([this, file, o] {
+        auto parsed = std::make_shared<midiimport::ParsedMidi> (midi);
+        confirmDiscard ([this, parsed, patternName, fileName, o] {
             Song song;
-            juce::String err;
-            if (! MidiFileIo::importInto (song, file, o, err))
+            std::string err;
+            if (! midiimport::importInto (song, *parsed, o, patternName, err))
             {
-                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"), err);
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"),
+                                                        juce::String::fromUTF8 (err.c_str()));
                 return;
             }
             engine.stop();
             engine.rewind();
             engine.setSong (std::move (song));
             currentFile = juce::File();
-            projectName = file.getFileNameWithoutExtension();
+            projectName = juce::File (fileName).getFileNameWithoutExtension();
             importedSuffix = " " + tr ("(imported from MIDI)");
             updateTitle();
         });
@@ -5443,9 +5644,11 @@ void MainComponent::importMidiFile (const juce::File& file, const MidiFileIo::Im
     }
 
     auto song = engine.getSong();
-    if (! MidiFileIo::importInto (song, file, o, error))
+    std::string err;
+    if (! midiimport::importInto (song, midi, o, patternName, err))
     {
-        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"), error);
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not import"),
+                                                juce::String::fromUTF8 (err.c_str()));
         return;
     }
     engine.editSong ([&song] (Song& s) { s = std::move (song); });
@@ -5456,26 +5659,57 @@ void MainComponent::exportMidiFile()
 {
     // FL's File › Export › "MIDI file...": the arrangement's notes (or the current pattern's) as a Standard MIDI File
     const auto folder = currentFile.existsAsFile() ? currentFile.getParentDirectory() : juce::File::getSpecialLocation (juce::File::userMusicDirectory);
-    const auto name = projectName.isNotEmpty() ? projectName : juce::String ("LYNX SHARE");
+    const auto name = projectName.isNotEmpty() ? projectName : juce::String ("Radiant");
     fileChooser = lynx::ui::makeFileChooser (tr ("Export MIDI file"), folder.getChildFile (name + ".mid"), "*.mid");
     juce::Component::SafePointer<MainComponent> safe (this);
     lynx::ui::launchChooser (fileChooser, juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
                               [safe] (const juce::FileChooser& fc) {
-                                  auto file = fc.getResult();
-                                  if (safe == nullptr || file == juce::File())
+                                  const auto url = fc.getURLResult();
+                                  if (safe == nullptr || url.toString (false).isEmpty())
                                       return;
-                                  if (! file.hasFileExtension (".mid;.midi"))
-                                      file = file.withFileExtension (".mid");
-                                  juce::String error;
-                                  if (! MidiFileIo::saveSong (safe->engine.getSong(), file, error))
-                                      juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not export"), error);
-                                  else
-                                      file.revealToUser();
+                                  if (url.isLocalFile())
+                                  {
+                                      auto file = url.getLocalFile();
+                                      if (! file.hasFileExtension (".mid;.midi"))
+                                          file = file.withFileExtension (".mid");
+                                      juce::String error;
+                                      if (! MidiFileIo::saveSong (safe->engine.getSong(), file, error))
+                                          juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not export"), error);
+                                      else
+                                          file.revealToUser();
+                                      return;
+                                  }
+                                 #if JUCE_ANDROID
+                                  auto song = std::make_shared<Song> (safe->engine.getSong());
+                                  juce::Thread::launch ([safe, url, song] {
+                                      juce::String error;
+                                      auto document = juce::AndroidDocument::fromDocument (url);
+                                      auto stream = document ? document.createOutputStream() : nullptr;
+                                      const auto ok = stream != nullptr && MidiFileIo::saveSong (*song, *stream, error);
+                                      if (! ok && error.isEmpty())
+                                          error = tr ("Could not write the selected document");
+                                      juce::MessageManager::callAsync ([safe, ok, error] {
+                                          if (safe != nullptr && ! ok)
+                                              juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                                                     tr ("Could not export"), error);
+                                      });
+                                  });
+                                 #else
+                                  juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not export"),
+                                                                          tr ("The selected document cannot be written"));
+                                 #endif
                               });
 }
 
 void MainComponent::save (bool askForFile)
 {
+#if JUCE_ANDROID
+    if (askForFile || currentFile == juce::File())
+    {
+        androidStorageAction.store (2, std::memory_order_release);
+        return;
+    }
+#endif
     auto write = [this] (juce::File file) {
         if (! file.hasFileExtension (ProjectFile::extension))
             file = file.withFileExtension (ProjectFile::extension);
@@ -5492,6 +5726,10 @@ void MainComponent::save (bool askForFile)
             projectName = file.getFileNameWithoutExtension();
             importedSuffix = {};
             updateTitle();
+#if JUCE_ANDROID
+            if (androidDocumentBacked)
+                androidStorageAction.store (3, std::memory_order_release);
+#endif
         }
         else
             juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Could not save"), error);
@@ -5520,7 +5758,7 @@ void MainComponent::save (bool askForFile)
                                   }
                                   // FL warns the same way: the backup folder is cleaned up as new backups arrive
                                   auto* w = new juce::AlertWindow (tr ("Save in the backup folder?"),
-                                                                   tr ("This folder keeps LYNX SHARE's automatic backups and old ones are deleted as new "
+                                                                   tr ("This folder keeps Radiant's automatic backups and old ones are deleted as new "
                                                                        "ones arrive, so a project saved here can be lost. If you opened a backup, save it "
                                                                        "somewhere else."),
                                                                    juce::MessageBoxIconType::WarningIcon);
@@ -5996,7 +6234,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int barIndex, const juce::String
         menu.addItem (tr ("Report a problem..."), [this] { crashreporter::showManualReport (&engine.getDeviceManager()); });
         if (updater::offered()) // (not in the Store build: the Store updates it)
             menu.addItem (tr ("Check for updates..."), [] { updater::checkNow(); });
-        menu.addItem (tr ("About LYNX SHARE"), [] {
+        menu.addItem (tr ("About Radiant"), [] {
             auto* window = makeAboutWindow().release();
             window->enterModalState (true, nullptr, true);
             keepAboveMainWindow (*window);
@@ -6019,9 +6257,9 @@ std::unique_ptr<juce::AlertWindow> MainComponent::makeAboutWindow()
     struct About final : juce::AlertWindow
     {
         About()
-            : juce::AlertWindow ("LYNX SHARE " JUCE_APPLICATION_VERSION_STRING,
-                                 tr ("Lightweight C++/JUCE DAW with the FL Studio workflow.\n"
-                                     "Independent implementation: no Image-Line code was copied."),
+            : juce::AlertWindow ("Radiant " JUCE_APPLICATION_VERSION_STRING,
+                                 tr ("An Android adaptation of the LYNX-SHARE digital audio workstation.\n"
+                                     "Independent fork; not affiliated with or endorsed by the original maintainers."),
                                  juce::MessageBoxIconType::NoIcon)
         {
             addCustomComponent (&logo);
@@ -6051,7 +6289,7 @@ void MainComponent::showLanguageChoice (const juce::String& id)
     const juce::LocalisedStrings strings (table, false);
     auto say = [&] (const char* text) { return table.isEmpty() ? juce::String::fromUTF8 (text) : strings.translate (juce::String::fromUTF8 (text)); };
 
-    auto* window = new juce::AlertWindow (say (TR_NOOP ("Language")), say (TR_NOOP ("The new language is applied when LYNX SHARE restarts.")),
+    auto* window = new juce::AlertWindow (say (TR_NOOP ("Language")), say (TR_NOOP ("The new language is applied when Radiant restarts.")),
                                           juce::MessageBoxIconType::InfoIcon);
     window->addButton (say (TR_NOOP ("Restart now")), 1, juce::KeyPress (juce::KeyPress::returnKey));
     window->addButton (say (TR_NOOP ("Later")), 0, juce::KeyPress (juce::KeyPress::escapeKey));
@@ -6238,7 +6476,7 @@ void MainComponent::showHelp()
 {
     juce::DialogWindow::LaunchOptions options;
     options.content.setOwned (makeHelpContent (&keyMap).release());
-    options.dialogTitle = tr ("LYNX SHARE shortcuts");
+    options.dialogTitle = tr ("Radiant shortcuts");
     options.dialogBackgroundColour = theme::colour::bg2;
     options.useNativeTitleBar = true;
     options.resizable = true;
@@ -6324,7 +6562,7 @@ void MainComponent::showImportReport()
     if (const auto& matched = engine.getMatchedPlugins(); ! matched.isEmpty())
         text << tr ("Plugins found on this PC:") << "\n  " << matched.joinIntoString ("\n  ") << "\n\n";
     if (! missing.isEmpty())
-        text << tr ("Plugins not installed on this PC (or in a folder LYNX SHARE doesn't scan; Options > Setup wizard):") << "\n  "
+        text << tr ("Plugins not installed on this PC (or in a folder Radiant doesn't scan; Options > Setup wizard):") << "\n  "
              << missing.joinIntoString ("\n  ") << "\n\n";
     if (const auto& lost = engine.getPluginsWithoutState(); ! lost.isEmpty())
         text << tr ("Plugins found but playing their default settings (the project saved them for the other format, VST2/VST3):") << "\n  "

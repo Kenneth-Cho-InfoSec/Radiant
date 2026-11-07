@@ -26,6 +26,7 @@ using ImportOptions = midiimport::Options;
 
 // The file's raw events (notes, controllers; ticks at LYNX's PPQ), track names, first tempo and time signature.
 std::optional<midiimport::ParsedMidi> parseFile (const juce::File& file, juce::String& error);
+std::optional<midiimport::ParsedMidi> parseStream (juce::InputStream& stream, juce::String& error);
 // The same from a Standard MIDI File in memory (the Piano roll's "Paste from MIDI clipboard", round 168g).
 std::optional<midiimport::ParsedMidi> parseBytes (const void* data, std::size_t size, juce::String& error);
 // A Standard MIDI File of `notes` (muted ones left out): a tempo / time signature track and one track named
@@ -39,10 +40,12 @@ std::optional<std::vector<Note>> loadNotes (const juce::File& file, int channel,
 
 // One track per channel with notes in the pattern. Song tempo at the start.
 bool savePattern (const Song& song, int pattern, const juce::File& file, juce::String& error);
+bool savePattern (const Song& song, int pattern, juce::OutputStream& stream, juce::String& error);
 
 // FL's File › Export › "MIDI file..." (REA round 139): the arrangement's notes (every pattern clip as it plays in the
 // Playlist: its part of the pattern, cut at the clip's end; muted clips and notes left out), one track per channel;
 // in pattern mode or with an empty Playlist, the current pattern. Tempo and time signature at the start.
 bool saveSong (const Song& song, const juce::File& file, juce::String& error);
+bool saveSong (const Song& song, juce::OutputStream& stream, juce::String& error);
 } // namespace MidiFileIo
 } // namespace lynx

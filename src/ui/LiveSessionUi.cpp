@@ -195,7 +195,7 @@ void offerResume (Context c)
     const auto when = info->saved.toString (true, true, false, true);
     juce::AlertWindow::showOkCancelBox (
         juce::MessageBoxIconType::QuestionIcon, tr ("Resume live session"),
-        tr ("LYNX SHARE closed during your live session ({0}, {1} people invited). Resume it? The people in it reconnect by themselves.",
+        tr ("Radiant closed during your live session ({0}, {1} people invited). Resume it? The people in it reconnect by themselves.",
             { when, juce::String (info->guests) }),
         tr ("Resume"), tr ("End it"), nullptr, juce::ModalCallbackFunction::create ([c, journal] (int r) {
             auto o = optionsFor (c, myName());

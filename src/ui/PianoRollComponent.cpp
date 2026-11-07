@@ -3402,8 +3402,45 @@ bool PianoRollComponent::runAction (const std::string& id)
                                                        score ? "*.fsc;*.mid;*.midi" : "*.mid;*.midi");
         lynx::ui::launchChooser (chooser, juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                               [safe = juce::Component::SafePointer<PianoRollComponent> (this)] (const juce::FileChooser& fc) {
-                                  if (safe != nullptr && fc.getResult().existsAsFile())
-                                      safe->loadFile (fc.getResult());
+                                  const auto url = fc.getURLResult();
+                                  if (safe == nullptr || url.toString (false).isEmpty())
+                                      return;
+                                  lynx::ui::readDocumentAsync (url, [safe] (lynx::ui::ReadDocumentResult loaded) {
+                                      if (safe == nullptr)
+                                          return;
+                                      if (loaded.error.isNotEmpty())
+                                      {
+                                          juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI", loaded.error);
+                                          return;
+                                      }
+                                      const juce::File namedFile (loaded.name);
+                                      if (namedFile.hasFileExtension (".mid;.midi"))
+                                      {
+                                          juce::String error;
+                                          const auto midi = MidiFileIo::parseBytes (loaded.bytes.getData(), loaded.bytes.getSize(), error);
+                                          if (! midi)
+                                          {
+                                              juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI", error);
+                                              return;
+                                          }
+                                          safe->importMidi (*midi, loaded.name);
+                                          return;
+                                      }
+
+                                      // The score parser currently needs a File; stage the selected SAF document privately.
+                                      const auto staged = juce::File::createTempFile (namedFile.getFileExtension());
+                                      juce::FileOutputStream output (staged);
+                                      if (output.failedToOpen() || ! output.write (loaded.bytes.getData(), loaded.bytes.getSize()))
+                                      {
+                                          staged.deleteFile();
+                                          juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI",
+                                                                                  "Could not stage the selected score");
+                                          return;
+                                      }
+                                      output.flush();
+                                      safe->loadFile (staged);
+                                      staged.deleteFile();
+                                  });
                               });
     }
     else if (is ("pianoRoll.exportMidi"))
@@ -3414,14 +3451,38 @@ bool PianoRollComponent::runAction (const std::string& id)
                                                        "*.mid");
         lynx::ui::launchChooser (chooser, juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
                               [safe = juce::Component::SafePointer<PianoRollComponent> (this)] (const juce::FileChooser& fc) {
-                                  auto file = fc.getResult();
-                                  if (safe == nullptr || file == juce::File())
+                                  const auto url = fc.getURLResult();
+                                  if (safe == nullptr || url.toString (false).isEmpty())
                                       return;
-                                  if (! file.hasFileExtension ("mid;midi"))
-                                      file = file.withFileExtension (".mid");
-                                  juce::String error;
-                                  if (! MidiFileIo::savePattern (safe->engine.getSong(), safe->engine.getSong().currentPattern, file, error))
-                                      juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI", error);
+                                  const auto pattern = safe->engine.getSong().currentPattern;
+                                  if (url.isLocalFile())
+                                  {
+                                      auto file = url.getLocalFile();
+                                      if (! file.hasFileExtension ("mid;midi"))
+                                          file = file.withFileExtension (".mid");
+                                      juce::String error;
+                                      if (! MidiFileIo::savePattern (safe->engine.getSong(), pattern, file, error))
+                                          juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI", error);
+                                      return;
+                                  }
+                                 #if JUCE_ANDROID
+                                  auto song = std::make_shared<Song> (safe->engine.getSong());
+                                  juce::Thread::launch ([safe, url, song, pattern] {
+                                      juce::String error;
+                                      auto document = juce::AndroidDocument::fromDocument (url);
+                                      auto stream = document ? document.createOutputStream() : nullptr;
+                                      const auto ok = stream != nullptr && MidiFileIo::savePattern (*song, pattern, *stream, error);
+                                      if (! ok && error.isEmpty())
+                                          error = "Could not write the selected document";
+                                      juce::MessageManager::callAsync ([safe, ok, error] {
+                                          if (safe != nullptr && ! ok)
+                                              juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI", error);
+                                      });
+                                  });
+                                 #else
+                                  juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "MIDI",
+                                                                          "The selected document cannot be written");
+                                 #endif
                               });
     }
     else if (is ("pianoRoll.saveScore"))
@@ -3967,7 +4028,11 @@ juce::PopupMenu PianoRollComponent::midiMenu()
 void PianoRollComponent::importMidi (const midiimport::ParsedMidi& midi, const juce::String& name)
 {
     // FL's "Import MIDI data" window with Blend (REA round 146b): which tracks / channels / controller
-    static midiimport::Options remembered;
+    static midiimport::Options remembered = [] {
+        midiimport::Options options;
+        options.blend = true; // adding a file to the selected channel preserves its existing notes by default
+        return options;
+    }();
     juce::Component::SafePointer<PianoRollComponent> safe (this);
     showMidiImportDialog (name, midi, remembered, true, [safe, midi] (const midiimport::Options& o) {
         remembered = o;

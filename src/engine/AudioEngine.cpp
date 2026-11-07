@@ -17,6 +17,7 @@
 
 #include <limits>
 #include <map>
+#include <mutex>
 #include <thread>
 
 #include "engine/Text.h"
@@ -225,10 +226,18 @@ struct AudioEngine::Drainer final : juce::TimeSliceClient
 };
 
 
+struct AudioEngine::RecordingPermissionContext
+{
+    std::mutex mutex;
+    AudioEngine* engine = nullptr;
+};
+
 AudioEngine::AudioEngine (bool openAudioDevice)
     : workers (std::make_unique<WorkerPool> (workerCount(), raiseAudioThreadPriority)),
       song (Song::makeDefault())
 {
+    recordingPermissionContext = std::make_shared<RecordingPermissionContext>();
+    recordingPermissionContext->engine = this;
     boostDeviceThread = juce::SystemStats::getEnvironmentVariable ("LYNX_DEVICE_BOOST", {}) != "0";
     inputSlot.fill (-1);
     outputSlot.fill (-1);
@@ -246,6 +255,7 @@ AudioEngine::AudioEngine (bool openAudioDevice)
     {
         player.setProcessor (&graph);
 
+       #if ! JUCE_ANDROID
         // LYNX ASIO without installation: lynx-asio.dll next to LYNX.exe, when it is not registered (REA round 106)
         if (auto lynxAsio = makeBuiltInLynxAsioType())
         {
@@ -258,6 +268,7 @@ AudioEngine::AudioEngine (bool openAudioDevice)
             deviceManager.getAvailableDeviceTypes();
             deviceManager.addAudioDeviceType (std::move (pipeWire));
         }
+       #endif
         mark ("  engine: device types");
 
         // 0 inputs, 2 outputs; the device of the last session (Settings › Audio) if it is still there, else the default.
@@ -306,6 +317,12 @@ AudioLogger& AudioEngine::getAudioLogger()
 
 AudioEngine::~AudioEngine()
 {
+    if (recordingPermissionContext != nullptr)
+    {
+        const std::lock_guard<std::mutex> lock (recordingPermissionContext->mutex);
+        recordingPermissionContext->engine = nullptr;
+    }
+
     stopTimer();
     rackExchange.dispose = nullptr; // (from here the racks are freed at once)
     rackDisposer.flush();
@@ -1288,7 +1305,7 @@ juce::String AudioEngine::startLatencyPing()
     if (transport.playing.load() || isCountingIn())
         return TR_NOOP ("stop playback first");
     if (! hasAudioInput())
-        if (const auto r = openAudioInput(); r.issue != InputIssue::none)
+        if (const auto r = openAudioInput ({}, true); r.issue != InputIssue::none)
             return TR_NOOP ("no audio input is open");
     device = deviceManager.getCurrentAudioDevice();
     if (device == nullptr)
@@ -1792,8 +1809,29 @@ void AudioEngine::notify (InputIssue issue, int track, const juce::String& detai
     sendChangeMessage();
 }
 
-AudioEngine::RecordingNotice AudioEngine::openAudioInput (const juce::String& deviceName)
+AudioEngine::RecordingNotice AudioEngine::openAudioInput (const juce::String& deviceName, bool promptForPermission)
 {
+   #if JUCE_ANDROID
+    if (! juce::RuntimePermissions::isGranted (juce::RuntimePermissions::recordAudio))
+    {
+        if (promptForPermission)
+            requestAudioInputPermission ([deviceName] (AudioEngine& engine, bool granted)
+            {
+                if (! granted)
+                {
+                    engine.notify (InputIssue::permissionRequired);
+                    return;
+                }
+
+                const auto result = engine.openAudioInput (deviceName);
+                if (result.issue != InputIssue::none)
+                    engine.notify (result.issue, result.track, result.detail);
+            });
+
+        return { InputIssue::permissionRequired, 0, {} };
+    }
+   #endif
+
     auto* type = deviceManager.getCurrentDeviceTypeObject();
 
     if (type == nullptr || deviceManager.getCurrentAudioDevice() == nullptr)
@@ -1896,7 +1934,7 @@ void AudioEngine::setInsertInput (int track, int channel, bool stereo)
     recordingError = {};
 
     if (channel >= 0 && ! hasAudioInput())
-        if (const auto result = openAudioInput(); result.issue != InputIssue::none)
+        if (const auto result = openAudioInput ({}, true); result.issue != InputIssue::none)
             notify (result.issue, track, result.detail);
 }
 
@@ -2169,22 +2207,92 @@ juce::StringArray AudioEngine::getActiveMidiInputs() const
 
 void AudioEngine::setAudioRecordingArmed (bool armed)
 {
-    audioArmed = armed;
-    recordingError = {};
-
-    if (armed)
+    if (! armed)
     {
-        // opens the input of the current driver (every channel, so each insert can pick its own)
-        if (! hasAudioInput())
-            if (const auto result = openAudioInput(); result.issue != InputIssue::none)
+        recordingPermissionGeneration.fetch_add (1, std::memory_order_relaxed);
+        recordingPermissionPending.store (false, std::memory_order_release);
+        audioArmed = false;
+        recordingError = {};
+        releaseAudioInputIfUnused();
+        sendChangeMessage();
+        return;
+    }
+
+    recordingError = {};
+   #if JUCE_ANDROID
+    if (! juce::RuntimePermissions::isGranted (juce::RuntimePermissions::recordAudio))
+    {
+        bool expected = false;
+        if (! recordingPermissionPending.compare_exchange_strong (expected, true, std::memory_order_acq_rel))
+            return;
+
+        const auto generation = recordingPermissionGeneration.fetch_add (1, std::memory_order_relaxed) + 1;
+        requestAudioInputPermission ([generation] (AudioEngine& engine, bool granted)
+        {
+            if (engine.recordingPermissionGeneration.load (std::memory_order_relaxed) != generation)
+                return; // the user disarmed while Android's permission dialog was open
+
+            engine.recordingPermissionPending.store (false, std::memory_order_release);
+            if (granted)
             {
-                recordingError = "no audio input";
-                notify (result.issue, 0, result.detail);
+                engine.armAudioRecordingGranted();
+                return;
             }
 
-        if (! recordThread.isThreadRunning())
-            recordThread.startThread();
+            engine.audioArmed = false;
+            engine.recordingError = "Android microphone permission is required for audio input";
+            engine.notify (InputIssue::permissionRequired);
+        });
+        return;
     }
+   #endif
+
+    armAudioRecordingGranted();
+}
+
+void AudioEngine::requestAudioInputPermission (std::function<void (AudioEngine&, bool)> completion)
+{
+   #if JUCE_ANDROID
+    if (juce::RuntimePermissions::isGranted (juce::RuntimePermissions::recordAudio))
+    {
+        completion (*this, true);
+        return;
+    }
+
+    const auto context = recordingPermissionContext;
+    juce::RuntimePermissions::request (juce::RuntimePermissions::recordAudio,
+                                       [context, completion = std::move (completion)] (bool granted) mutable
+    {
+        juce::MessageManager::callAsync ([context, completion = std::move (completion), granted] () mutable
+        {
+            if (context == nullptr)
+                return;
+
+            const std::lock_guard<std::mutex> lock (context->mutex);
+            if (context->engine != nullptr)
+                completion (*context->engine, granted);
+        });
+    });
+   #else
+    completion (*this, true);
+   #endif
+}
+
+void AudioEngine::armAudioRecordingGranted()
+{
+    audioArmed = true;
+    recordingError = {};
+
+    // Opens the input only after Android has granted RECORD_AUDIO.
+    if (! hasAudioInput())
+        if (const auto result = openAudioInput(); result.issue != InputIssue::none)
+        {
+            recordingError = "no audio input";
+            notify (result.issue, 0, result.detail);
+        }
+
+    if (! recordThread.isThreadRunning())
+        recordThread.startThread();
 
     sendChangeMessage();
 }
@@ -3013,7 +3121,7 @@ bool AudioEngine::finishFlpImport (PreparedFlp&& prepared, bool asEdit)
                                         [&] (const MissingPlugin& m) { return m.name == name && ! m.replacementArg.empty(); });
                 if (it == missingPluginDetails.end())
                     it = missingPluginDetails.insert (missingPluginDetails.end(),
-                                                      MissingPlugin { name, {}, TR_NOOP ("LYNX SHARE substitute: {0} (the original plugin is used again once it is installed). FL Studio plays a missing plugin's slot unprocessed: a substitute slot's menu › Bypass all LYNX SHARE substitutes of this project does the same"),
+                                                      MissingPlugin { name, {}, TR_NOOP ("Radiant substitute: {0} (the original plugin is used again once it is installed). FL Studio plays a missing plugin's slot unprocessed: a substitute slot's menu › Bypass all Radiant substitutes of this project does the same"),
                                                                       effectInfo (fx.kind).name });
                 const auto user = userOf (imported, t);
                 if (std::find (it->usedBy.begin(), it->usedBy.end(), user) == it->usedBy.end())

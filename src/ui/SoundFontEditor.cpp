@@ -752,7 +752,7 @@ private:
                                   if (! firstSoundFontPreset (path, bank, program))
                                   {
                                       juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, tr ("Load SoundFont"),
-                                                                              tr ("This file is not a SoundFont LYNX SHARE can read."));
+                                                                              tr ("This file is not a SoundFont Radiant can read."));
                                       return;
                                   }
                                   loadInto (safe->engine, safe->channel, path, bank, program);

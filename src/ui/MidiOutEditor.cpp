@@ -1,4 +1,4 @@
-// FL's MIDI Out editor as LYNX SHARE draws it (round 167i, issue #17; REA_rodada167i §1: FL's TSynthEditorForm and
+// FL's MIDI Out editor as Radiant draws it (round 167i, issue #17; REA_rodada167i §1: FL's TSynthEditorForm and
 // TCtrlSetForm in "MIDI Out_x64.dll"): channel, patch, bank MSB / LSB and port; 8 pages of 3 × 3 knobs, each a CC,
 // RPN, NRPN, aftertouch or note set up by its cog ("Configure..."); Reset, Deactivate all, "Send pan, volume and
 // pitch", "Map note color to MIDI channel", the Options menu (what a reset sends) and FL's presets. LYNX's own extras
@@ -858,7 +858,7 @@ private:
 
         if (channel < 0) // inside a Patcher (round 162)
         {
-            listeners.setText (tr ("Inside a Patcher: cable its \"MIDI out\" pin to an instrument or to a \"MIDI port\" pin of \"To LYNX SHARE\"; "
+            listeners.setText (tr ("Inside a Patcher: cable its \"MIDI out\" pin to an instrument or to a \"MIDI port\" pin of \"To Radiant\"; "
                                    "its notes go out on this MIDI channel."),
                                juce::dontSendNotification);
             return;

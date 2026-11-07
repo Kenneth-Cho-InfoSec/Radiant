@@ -31,7 +31,7 @@ using ld = long double;
 // ------------------------------------------------------------------------------------------------ x87 (§2.1)
 // The engine runs on the x87 with 64-bit precision; processReplacing switches to truncating rounding for its whole
 // duration. long double is the x87 format on the targets LYNX builds for; the guards set the control word.
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Mode
 {
     unsigned short saved = 0;
@@ -90,7 +90,7 @@ inline ld fexp (ld x) noexcept { return std::exp (x); }
 inline int fistp (ld x) noexcept { return (int) std::nearbyint (x); }
 #endif
 
-#if (defined(__x86_64__) || defined(__i386__)) && defined(__GNUC__) && ! defined(__clang__)
+#if LYNX_HAS_X87_EXTENDED && defined(__GNUC__) && ! defined(__clang__)
 // GCC (not Clang) narrows a float-to-long-double product stored back to float into an SSE operation, which rounds by
 // MXCSR (to nearest) instead of the x87 control word; the stores go through the FPU explicitly (REA_rodada79 §5)
 inline float F (ld x) noexcept

@@ -80,7 +80,7 @@ struct Runtime
         const auto path = runtimeFile();
         if (! path.existsAsFile())
         {
-            error = tr ("Stem extraction needs ONNX Runtime ({0}), which comes with LYNX SHARE's installer and zip, but it is missing next to the program. Install LYNX SHARE with the installer, or unpack the whole zip.", { path.getFileName() });
+            error = tr ("Stem extraction needs ONNX Runtime ({0}), which comes with Radiant's installer and zip, but it is missing next to the program. Install Radiant with the installer, or unpack the whole zip.", { path.getFileName() });
             return false;
         }
         const auto getBase = library.open (path.getFullPathName()) ? (const OrtApiBase* (ORT_API_CALL*) (void) noexcept) library.getFunction ("OrtGetApiBase") : nullptr;
@@ -597,7 +597,7 @@ void extractStemsFromClip (AudioEngine& engine, int clipIndex, std::function<voi
     }
 
     // the first time: the source and the licence, before anything is downloaded
-    const auto text = tr ("Extracting stems needs the HT-Demucs model. It isn't part of LYNX SHARE: it is downloaded once ({0} MB) and kept in {1}.", { juce::String (modelBytes / 1000000), modelFolder().getFullPathName() })
+    const auto text = tr ("Extracting stems needs the HT-Demucs model. It isn't part of Radiant: it is downloaded once ({0} MB) and kept in {1}.", { juce::String (modelBytes / 1000000), modelFolder().getFullPathName() })
                     + "\n\n" + tr ("Source: {0} (ONNX export of Demucs v4 by Meta AI Research)", { juce::String (modelPage) })
                     + "\n\n" + tr ("Licence: the Demucs code is MIT. The licence of the trained weights is not clear, as the authors say: the training data includes MUSDB18-HQ, parts of which were for research use only. Decide for yourself whether that fits your use, commercial use above all.");
     juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, tr ("Extract stems from sample"), text, tr ("Download"), tr ("Cancel"), nullptr,

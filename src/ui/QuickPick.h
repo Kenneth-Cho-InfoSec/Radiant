@@ -81,7 +81,7 @@ std::vector<Pick> renamedGenerators (AudioEngine& engine, std::function<void (Ch
 // Round 166f (issue #16, FL's Plugin database folders) and 170b (Busy Works: "random order"): every built-in plugin
 // and every plugin the user put in a folder (the Browser's Plugin database), under its folder's heading ("Stock",
 // "Stock › EQ"), A-Z, as FL's mixer slot / Add menus: the user's folder, else FL's own category for FL's plugins
-// (Delay reverb, Dynamics, Filter...), else "LYNX SHARE" (first). Installed VST / CLAP plugins in no folder are not
+// (Delay reverb, Dynamics, Filter...), else "Radiant" (first). Installed VST / CLAP plugins in no folder are not
 // listed here (the Plugin › submenu). The view (Categories / Simple / Tree) is the user's. Returns whether anything
 // was added.
 bool addFolderGroups (juce::PopupMenu& menu, AudioEngine& engine, std::function<void (EffectSlot)> add);

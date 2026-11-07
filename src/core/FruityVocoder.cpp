@@ -2,6 +2,7 @@
 
 #include "core/DelphiMath.h"
 #include "core/Denormals.h"
+#include "core/X87Math.h"
 
 #include <algorithm>
 #include <climits>
@@ -31,7 +32,7 @@ namespace
 {
 using ld = long double;
 
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Extended // 64-bit precision, round to nearest, for the follower and the product sums
 {
     unsigned short saved = 0;

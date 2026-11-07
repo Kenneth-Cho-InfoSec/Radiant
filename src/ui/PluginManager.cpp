@@ -122,7 +122,7 @@ public:
         // an empty list is not "no plugins": LYNX's own instruments and effects are never listed here (GitHub issue #2)
         emptyHint.setText (tr ("No third-party plugins found yet ({0}). Press Find new plugins, or add folders with Plugin folders...", { platform::pluginFormatNames() })
                                + "\n\n"
-                               + tr ("LYNX SHARE's own instruments and effects are not listed here: they are always available from the Channel Rack's + button, "
+                               + tr ("Radiant's own instruments and effects are not listed here: they are always available from the Channel Rack's + button, "
                                      "a mixer insert slot or the Quick-add palette (F8)."),
                            juce::dontSendNotification);
         emptyHint.setFont (theme::font (theme::type::body));
@@ -425,8 +425,8 @@ private:
     void confirmRescanAll()
     {
         juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, tr ("Rescan all plugins"),
-                                            tr ("LYNX SHARE forgets every plugin it found (and the ones that failed) and examines all plugin folders "
-                                                "again. This can take a few minutes; LYNX SHARE stays usable meanwhile."),
+                                            tr ("Radiant forgets every plugin it found (and the ones that failed) and examines all plugin folders "
+                                                "again. This can take a few minutes; Radiant stays usable meanwhile."),
                                             tr ("Rescan"), tr ("Cancel"), this,
                                             juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<PluginManagerPanel> (this)] (int result) {
                                                 if (safe != nullptr && result == 1)

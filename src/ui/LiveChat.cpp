@@ -119,7 +119,7 @@ class ChatWindow final : public juce::DocumentWindow
 public:
     explicit ChatWindow (LiveSessionManager& live) : juce::DocumentWindow (tr ("Session chat"), colour::bg2, DocumentWindow::closeButton)
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         setContentOwned (new ChatPanel (live), true);
         setResizable (true, false);
         setResizeLimits (300, 220, 1200, 1400);

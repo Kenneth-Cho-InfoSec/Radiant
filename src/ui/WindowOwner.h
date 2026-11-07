@@ -55,6 +55,11 @@ void forceForegroundForTest (juce::Component& window);
 // Native window chrome in the LYNX colours (dark title bar on Windows). keepAboveMainWindow calls it.
 void applyWindowChrome (juce::Component& window);
 
+// Floating JUCE editors use a visible, touch-sized JUCE title bar on Android. The Android peer's native
+// minimise operation is a no-op, so the title-bar minimise button collapses the editor content and can restore it.
+// On desktop this keeps the existing native title-bar behavior.
+void configureSecondaryWindowControls (juce::DocumentWindow& window);
+
 // GPU rendering (round 157a). JUCE 8 draws every Windows window with Direct2D (the GPU driver's D3D11 path); a
 // driver that crashes there (Intel igd10um64xe.dll on a hybrid-graphics laptop) takes LYNX down. Off = every LYNX
 // window draws with GDI (the CPU), as JUCE 7 did. Saved in gpu-rendering.txt ("0" = off; default on). The change

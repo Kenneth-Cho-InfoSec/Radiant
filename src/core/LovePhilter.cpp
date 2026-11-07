@@ -1,4 +1,5 @@
 #include "core/LovePhilter.h"
+#include "core/X87Math.h"
 
 // Fruity Love Philter, exact engine (docs/analise/REA_rodada66.md; earlier decoding in rounds 16–20 and 27).
 // Clean-room: written from the behaviour, formulas and data layouts described there; nothing of Image-Line's code or
@@ -67,7 +68,7 @@ const double kLn2Half = 0.34657359027997264;    // ln 2 / 2
 const double kPi = 3.1415926535897931;
 
 // ------------------------------------------------------------------------------------------- x87 control word
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Mode
 {
     unsigned short saved = 0;

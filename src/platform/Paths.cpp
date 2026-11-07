@@ -87,6 +87,8 @@ juce::File settingsFolder()
     auto folder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("LYNX");
    #elif JUCE_MAC
     auto folder = home().getChildFile ("Library/Application Support/LYNX");
+   #elif JUCE_ANDROID
+    auto folder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Radiant");
    #else
     auto folder = xdgFolder ("XDG_CONFIG_HOME", ".config").getChildFile ("LYNX");
    #endif
@@ -107,6 +109,8 @@ juce::File cacheFolder (const juce::String& name)
     return settingsFolder().getChildFile (name);
    #elif JUCE_MAC
     return home().getChildFile ("Library/Caches/LYNX").getChildFile (name);
+   #elif JUCE_ANDROID
+    return settingsFolder().getChildFile ("cache").getChildFile (name);
    #else
     return xdgFolder ("XDG_CACHE_HOME", ".cache").getChildFile ("LYNX").getChildFile (name);
    #endif
@@ -128,6 +132,8 @@ juce::FileSearchPath standardPluginFolders()
     for (const auto& root : { home().getChildFile ("Library/Audio/Plug-Ins"), juce::File ("/Library/Audio/Plug-Ins") })
         for (const auto* sub : { "VST3", "Components", "CLAP", "VST" })
             paths.add (root.getChildFile (sub));
+   #elif JUCE_ANDROID
+    // Android does not load desktop VST, CLAP, AU, or LV2 binaries.
    #else
     // VST3 and CLAP specs' Linux folders, LV2's usual ones and the de-facto VST2 ones; the lib64 variants are where
     // Fedora, openSUSE and other 64-bit-libdir distributions install them
@@ -153,6 +159,8 @@ juce::String pluginFormatNames()
     return "VST, VST3, CLAP";
    #elif JUCE_MAC
     return "VST3, AU, CLAP";
+   #elif JUCE_ANDROID
+    return {};
    #else
     return "VST, VST3, CLAP, LV2";
    #endif

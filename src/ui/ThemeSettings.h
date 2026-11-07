@@ -18,6 +18,8 @@ constexpr const char* fileExtension = ".lynxtheme";
 const themes::Spec& current();
 // Applies a theme to the running app (and saves it as the user's theme when `save`).
 void apply (const themes::Spec& spec, bool save = true);
+// Android dynamic colours provide a few seed surface/text tokens; keep the derived palette relations for the rest.
+void apply (const themes::Spec& spec, const themes::Palette& palette, bool save = true);
 // Reads the saved theme and sets the tokens (call once at start, before the first window).
 void loadSaved();
 

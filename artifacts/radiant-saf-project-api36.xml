@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-07T12:33:52" hostname="localhost">
+  <testsuite name="com.radiant.daw.SafProjectStorageInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="8.624" timestamp="2026-11-07T12:33:52" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="createDocumentWritesProjectThatNativeLoaderCanReopen" classname="com.radiant.daw.SafProjectStorageInstrumentedTest" time="8.624" />
+  </testsuite>
+</testsuites>

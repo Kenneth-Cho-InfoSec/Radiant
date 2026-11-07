@@ -170,7 +170,7 @@ void sendProject (Context c)
     }
     const auto guests = std::max (0, (int) song.session.participants.size() - 1);
     auto* w = new juce::AlertWindow (tr ("Send project"),
-                                     tr ("Your friend opens the package in their LYNX SHARE, records their part and sends it back to you "
+                                     tr ("Your friend opens the package in their Radiant, records their part and sends it back to you "
                                          "(File › Merge a part...). Up to {0} people in one project, you included.",
                                          { juce::String (session::maxParticipants) }),
                                      juce::MessageBoxIconType::NoIcon);
@@ -453,7 +453,7 @@ void openPackage (Context c, const juce::File& file)
                 + (manifest->to.keepFull ? tr ("When the session ends you may keep a full copy of the project.")
                                          : tr ("When the session ends you keep your own part (the host's choice)."));
     if (manifest->lynxVersion != JUCE_APPLICATION_VERSION_STRING)
-        text << "\n\n" << tr ("Made with LYNX SHARE {0} (this is {1}).", { manifest->lynxVersion, JUCE_APPLICATION_VERSION_STRING });
+        text << "\n\n" << tr ("Made with Radiant {0} (this is {1}).", { manifest->lynxVersion, JUCE_APPLICATION_VERSION_STRING });
     auto* w = new juce::AlertWindow (tr ("Open a received project"), text, juce::MessageBoxIconType::NoIcon);
     w->addButton (tr ("Open"), 1, juce::KeyPress (juce::KeyPress::returnKey));
     w->addButton (tr ("Cancel"), 0, juce::KeyPress (juce::KeyPress::escapeKey));

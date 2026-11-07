@@ -19,6 +19,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include <functional>
+#include <array>
 #include <map>
 #include <memory>
 #include <vector>
@@ -121,6 +122,78 @@ inline bool nativeDialogs()
 #endif
 }
 } // namespace filechooser
+
+// SAF returns content:// URLs on Android, not local filesystem paths. Read selected documents off the message thread
+// and return their bytes so parsers that require random access can consume a bounded in-memory copy.
+struct ReadDocumentResult
+{
+    juce::MemoryBlock bytes;
+    juce::String name;
+    juce::String error;
+};
+
+inline void readDocumentAsync (juce::URL url, std::function<void (ReadDocumentResult)> callback)
+{
+    auto read = [url = std::move (url), callback] () mutable {
+        ReadDocumentResult result;
+        std::unique_ptr<juce::InputStream> input;
+
+        if (url.isLocalFile())
+        {
+            const auto file = url.getLocalFile();
+            result.name = file.getFileName();
+            input = std::make_unique<juce::FileInputStream> (file);
+        }
+       #if JUCE_ANDROID
+        else
+        {
+            auto document = juce::AndroidDocument::fromDocument (url);
+            if (document)
+            {
+                result.name = document.getInfo().getName();
+                input = document.createInputStream();
+            }
+        }
+       #endif
+
+        if (input == nullptr)
+            result.error = "Could not open the selected document";
+        else
+        {
+            juce::MemoryOutputStream bytes;
+            std::array<char, 64 * 1024> buffer {};
+            constexpr std::size_t maxDocumentBytes = 256u * 1024u * 1024u;
+            while (result.error.isEmpty())
+            {
+                const auto count = input->read (buffer.data(), (int) buffer.size());
+                if (count <= 0)
+                    break;
+                if (bytes.getDataSize() + (std::size_t) count > maxDocumentBytes)
+                {
+                    result.error = "The selected document is larger than 256 MB";
+                    break;
+                }
+                bytes.write (buffer.data(), (std::size_t) count);
+            }
+
+            if (result.error.isEmpty())
+            {
+                if (bytes.getDataSize() == 0)
+                    result.error = "The selected document is empty or could not be read";
+                else
+                    result.bytes = bytes.getMemoryBlock();
+            }
+        }
+
+        juce::MessageManager::callAsync ([callback = std::move (callback), result = std::move (result)] () mutable {
+            if (callback)
+                callback (std::move (result));
+        });
+    };
+
+    if (! juce::Thread::launch (std::move (read)) && callback)
+        callback ({ {}, {}, "Could not start the document reader" });
+}
 
 // A juce::FileChooser: the system's dialog where it works, else JUCE's built-in one (see above)
 inline std::unique_ptr<juce::FileChooser> makeFileChooser (const juce::String& title, const juce::File& start = {},

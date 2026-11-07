@@ -1,4 +1,5 @@
 #include "core/ThreeOsc.h"
+#include "core/X87Math.h"
 #include "core/HostSlide.h"
 
 #include <algorithm>
@@ -200,7 +201,7 @@ const HostTables& hostTables()
 
 // The oscillator mixers run on the x87 with 64-bit precision (the DLL's control word 0x33F): long double arithmetic
 // reproduces them where long double is the x87 format; the guard makes sure the precision field is 64-bit.
-#if (defined(__x86_64__) || defined(__i386__)) && (defined(__GNUC__) || defined(__clang__))
+#if LYNX_HAS_X87_EXTENDED
 struct X87Extended
 {
     unsigned short saved = 0;

@@ -934,7 +934,7 @@ public:
         : DocumentWindow (title, theme::colour::bg2, DocumentWindow::closeButton),
           gone (engine, track, slot, [this] { closeButtonPressed(); })
     {
-        setUsingNativeTitleBar (true);
+        configureSecondaryWindowControls (*this);
         setContentOwned (content.release(), true);
         setResizable (true, false);
         centreWithSize (getWidth(), getHeight());
