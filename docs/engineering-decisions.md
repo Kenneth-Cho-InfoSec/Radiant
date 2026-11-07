@@ -169,3 +169,11 @@ Sources: [JUCE PopupMenu implementation](https://github.com/juce-framework/JUCE/
 **Reason:** Android launchers apply device-specific masks to adaptive icons, while mipmap density resources provide legacy and launcher resource variants. The Samsung app drawer rendered the artwork after the in-place install, and the Pixel 8 package installed and launched with the new resources.
 
 Sources: [Create app icons](https://developer.android.com/studio/write/create-app-icons), [Adaptive icons](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive). Accessed 2026-11-07.
+
+## E-022 — Keep Android release signing material outside the source tree
+
+**Decision:** Configure the release variant from `RADIANT_SIGNING_*` environment variables. Keep the PKCS12 key outside the checkout with owner-only permissions, and use repository Actions secrets for the manually dispatched release workflow.
+
+**Reason:** Android requires an explicit signing configuration for a signed release. Gradle configuration supports obtaining signing passwords from the environment, while GitHub Actions secrets limit which workflows can read the values. The workflow grants write access to repository contents only for the job that uploads the verified APK.
+
+Sources: [Android build variants and signing configuration](https://developer.android.com/build/build-variants), [GitHub Actions secrets](https://docs.github.com/en/actions/concepts/security/secrets), [GitHub Actions workflow permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax). Accessed 2026-11-07.

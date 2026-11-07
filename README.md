@@ -88,4 +88,4 @@ See [test results](docs/test-results.md), the [real-device testing journal](docs
 
 ## License
 
-Radiant is distributed under the upstream [GNU AGPL-3.0 license](LICENSE), together with the separate licenses of bundled dependencies and assets. The bundled Roboto font includes its SIL Open Font License text at `app/src/main/assets/fonts/OFL.txt`. Review all notices and source obligations before distributing a build.
+Radiant is distributed under the upstream [GNU AGPL-3.0 license](LICENSE), together with the separate licenses of bundled dependencies and assets. The Android package includes the AGPL text and a third-party notice bundle under `assets/licenses/`. The bundled Roboto font includes its SIL Open Font License text at `app/src/main/assets/fonts/OFL.txt`. Matching source and build instructions are in this repository.

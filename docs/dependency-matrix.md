@@ -17,7 +17,7 @@ Versions below are selected for the first Android app build as of 2026-11-07. CM
 | Production ABI | `arm64-v8a` | Product requirement. |
 | Emulator ABI | `x86_64` debug build | Debug-only ABI filter; release remains `arm64-v8a`. This does not validate ARM64 execution. |
 | Emulator images | API 29 and API 36, Google APIs, x86_64 | API 36 phone and tablet plus API 29 phone booted with KVM and rendered the app. |
-| Bundled core dependencies | PocketPy, Monocypher, LAME, WavPack, libogg/libvorbis, stb/minimp3 and other in-tree code | Compile/license audit pending. |
+| Bundled core dependencies | PocketPy, Monocypher, LAME, WavPack, libogg/libvorbis, stb/minimp3 and other in-tree code | License texts from all 16 in-tree license files are bundled under `app/src/main/assets/licenses/THIRD-PARTY-NOTICES.txt`. A full binary SBOM and per-symbol license audit remain pending. |
 | JUCE Android fallback font | Roboto variable font from `google/fonts` (`OFL-1.1`) | Packaged at `app/src/main/assets/fonts/Roboto` for Android API 28 and earlier JUCE font fallback; its OFL text is included alongside it. |
 | Android audio | JUCE Android backend with Oboe | Opens emulator output at 48 kHz; the API 36 phone reported a 4800-sample block. This is emulator-specific and does not establish real-device latency. |
 

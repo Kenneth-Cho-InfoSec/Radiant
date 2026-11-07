@@ -8,6 +8,22 @@ android {
     compileSdk 37
     ndkVersion '28.2.13676358'
 
+    signingConfigs {
+        release {
+            def signingStoreFile = System.getenv('RADIANT_SIGNING_STORE_FILE')
+            def signingStorePassword = System.getenv('RADIANT_SIGNING_STORE_PASSWORD')
+            def signingKeyAlias = System.getenv('RADIANT_SIGNING_KEY_ALIAS')
+            def signingKeyPassword = System.getenv('RADIANT_SIGNING_KEY_PASSWORD')
+
+            if (signingStoreFile && signingStorePassword && signingKeyAlias && signingKeyPassword) {
+                storeFile file(signingStoreFile)
+                storePassword signingStorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId 'com.radiant.daw'
         minSdk 29
@@ -39,6 +55,7 @@ android {
         }
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

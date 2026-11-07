@@ -11,7 +11,9 @@ Status: Android SDK, NDK, CMake, JDK, Gradle app, JNI/Compose/JUCE host, and deb
 - JDK: Eclipse Temurin `21.0.13+9`, downloaded to a user-local directory and SHA-256 verified (`d7f5d5cf865a2902b70ff549b97586a7d3f234e016f041ab447ea740c7d66d1c`).
 - API 29 and API 36 platforms; production ABI `arm64-v8a`.
 - Android pins: AGP 9.5.0 / Gradle 9.6.1 / Compose compiler plugin 2.4.10 / Compose BOM 2026.09.00 / Activity Compose 1.13.0. AGP's built-in Kotlin support is enabled; no `org.jetbrains.kotlin.android` plugin is applied.
-- Local JDK location: `$JAVA_HOME` (keep machine-specific SDK/JDK paths out of tracked Gradle configuration).
+- Keep machine-specific SDK and JDK paths out of tracked Gradle configuration.
+
+Set `ANDROID_HOME` and `JAVA_HOME` to your local Android SDK and JDK 21 installations before running the commands below. For example, use your SDK's `platform-tools`, `cmake/3.31.6`, and `ndk/28.2.13676358` directories.
 
 ## Verified native core build
 
@@ -50,11 +52,9 @@ For the full emulator command and source fixtures, see `docs/test-results.md` an
 ## Build and install the debug APK
 
 ```bash
-JAVA_HOME=$JAVA_HOME \
-PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmake/3.31.6/bin:$PATH \
-ANDROID_HOME=$ANDROID_HOME \
-ANDROID_SDK_ROOT=$ANDROID_HOME \
-  ./gradlew :app:assembleDebug --console=plain
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+./gradlew :app:assembleDebug --console=plain
 
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -W \
@@ -64,3 +64,17 @@ adb shell am start -W \
 The current debug APK packages `arm64-v8a` and `x86_64` to support physical ARM64 devices and emulator testing. The release variant filters to ARM64. A recent debug artifact measured about 365 MiB; this is unoptimized and not a release-size estimate. Run `./gradlew :app:connectedDebugAndroidTest --console=plain` with a booted compatible AVD for the native/UI instrumentation checks.
 
 Do not copy absolute SDK paths into tracked Gradle or CMake files. Use the Gradle wrapper for project builds.
+
+## Build a signed release APK
+
+The release build reads its signing settings from `RADIANT_SIGNING_STORE_FILE`, `RADIANT_SIGNING_STORE_PASSWORD`, `RADIANT_SIGNING_KEY_ALIAS`, and `RADIANT_SIGNING_KEY_PASSWORD`. Keep the keystore and credentials outside the checkout. Never put their values in Gradle properties, source control, or shell history.
+
+After exporting those variables in a protected local environment, build and verify:
+
+```bash
+./gradlew :app:assembleRelease --console=plain
+"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs \
+  app/build/outputs/apk/release/app-release.apk
+```
+
+The release APK targets ARM64. The signed release workflow uses the same environment names and reads them from repository Actions secrets.
