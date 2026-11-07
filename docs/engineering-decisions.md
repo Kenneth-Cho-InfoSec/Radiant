@@ -177,3 +177,9 @@ Sources: [Create app icons](https://developer.android.com/studio/write/create-ap
 **Reason:** Android requires an explicit signing configuration for a signed release. Gradle configuration supports obtaining signing passwords from the environment, while GitHub Actions secrets limit which workflows can read the values. The workflow grants write access to repository contents only for the job that uploads the verified APK.
 
 Sources: [Android build variants and signing configuration](https://developer.android.com/build/build-variants), [GitHub Actions secrets](https://docs.github.com/en/actions/concepts/security/secrets), [GitHub Actions workflow permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax). Accessed 2026-11-07.
+
+## E-023 — Prefix Android-only release tags
+
+**Decision:** Tag Android app releases as `android-vX.Y.Z`.
+
+**Reason:** The inherited desktop release workflow runs for `v*` tags and reads its version from the root CMake project, currently `0.1.24`. The Android app uses its own version, currently `0.1.0`. An Android-only tag must not start the desktop release workflow or be rejected as a version mismatch.

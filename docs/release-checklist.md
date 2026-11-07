@@ -16,3 +16,5 @@ This checklist describes the first Radiant private beta release. The repository 
 - [ ] Repository owner explicitly authorizes publication before any public release is created.
 
 `.github/workflows/android-release.yml` can be manually dispatched with an existing release tag. It builds the ARM64 APK, verifies its signature, and attaches it to the selected release. Configure `RADIANT_SIGNING_KEYSTORE_BASE64`, `RADIANT_SIGNING_STORE_PASSWORD`, `RADIANT_SIGNING_KEY_ALIAS`, and `RADIANT_SIGNING_KEY_PASSWORD` as repository Actions secrets before dispatching it.
+
+Use an `android-vX.Y.Z` tag for Android releases. The existing desktop workflow owns `vX.Y.Z` tags and follows the root CMake version.

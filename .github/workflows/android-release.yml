@@ -57,7 +57,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          version="${RELEASE_TAG#v}"
+          version="${RELEASE_TAG##*v}"
           apk="$RUNNER_TEMP/Radiant-${version}-arm64.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           echo "RADIANT_RELEASE_APK=$apk" >> "$GITHUB_ENV"
